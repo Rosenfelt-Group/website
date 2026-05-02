@@ -1,0 +1,60 @@
+version: '3.8'
+
+# NOTE: MySQL credentials are stored here in plaintext (private repo).
+# To rotate: update MYSQL_ROOT_PASSWORD + MYSQL_PASSWORD, then
+# docker compose down && docker compose up -d (DB container must restart to pick up new pw).
+
+services:
+  wordpress-db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: WProot2026!RG
+      MYSQL_DATABASE: wordpress
+      MYSQL_USER: wpuser
+      MYSQL_PASSWORD: WPpass2026!RG
+    volumes:
+      - wordpress-db:/var/lib/mysql
+    networks:
+      - wordpress-net
+
+  wordpress:
+    build: .
+    image: wordpress-rg:latest
+    restart: always
+    depends_on:
+      - wordpress-db
+    environment:
+      WORDPRESS_DB_HOST: wordpress-db
+      WORDPRESS_DB_USER: wpuser
+      WORDPRESS_DB_PASSWORD: WPpass2026!RG
+      WORDPRESS_DB_NAME: wordpress
+    volumes:
+      - wordpress-files:/var/www/html
+    networks:
+      - wordpress-net
+      - n8n_default
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.wordpress.rule=Host(`rosably.com`) || Host(`www.rosably.com`)"
+      - "traefik.http.routers.wordpress.entrypoints=websecure"
+      - "traefik.http.routers.wordpress.tls=true"
+      - "traefik.http.routers.wordpress.tls.certresolver=mytlschallenge"
+      - "traefik.http.services.wordpress.loadbalancer.server.port=80"
+      - "traefik.http.routers.wordpress-redirect.rule=Host(`rosenfeltgroup.com`) || Host(`www.rosenfeltgroup.com`)"
+      - "traefik.http.routers.wordpress-redirect.entrypoints=websecure"
+      - "traefik.http.routers.wordpress-redirect.tls=true"
+      - "traefik.http.routers.wordpress-redirect.tls.certresolver=mytlschallenge"
+      - "traefik.http.routers.wordpress-redirect.middlewares=redirect-to-rosably@docker"
+      - 'traefik.http.middlewares.redirect-to-rosably.redirectregex.regex=^https?://(?:www\.)?rosenfeltgroup\.com/(.*)'
+      - 'traefik.http.middlewares.redirect-to-rosably.redirectregex.replacement=https://rosably.com/$$1'
+      - "traefik.http.middlewares.redirect-to-rosably.redirectregex.permanent=true"
+
+volumes:
+  wordpress-db:
+  wordpress-files:
+
+networks:
+  wordpress-net:
+  n8n_default:
+    external: true

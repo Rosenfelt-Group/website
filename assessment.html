@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Readiness Assessment � Rosably</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1C1C1E; font-family: Georgia, serif; color: #F0EEE9; }
+  #root { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
+  button { font-family: Georgia, serif; }
+  a { font-family: Georgia, serif; }
+
+  /* Remove Kadence/WordPress content padding for full-bleed dark background */
+  .entry-content, .entry-content > *, .wp-block-group,
+  .content-container, .content-container > *,
+  .site-content, .wp-site-blocks {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    max-width: 100% !important;
+  }
+  .entry-content { padding-top: 0 !important; padding-bottom: 0 !important; }
+  .wp-block-html { margin: 0 !important; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+const WPFORMS_FORM_ID = 1969;
+
+const sections = [
+  {
+    id: "operations", title: "Operations & Processes", icon: "??",
+    questions: [
+      "Your core operational processes are documented (written SOPs exist, not just tribal knowledge)",
+      "Staff spend more than 3 hours per week on tasks that are repetitive and rule-based (data entry, report generation, scheduling, copy-paste between systems)",
+      "You know which 3 workflows consume the most staff time",
+      "You have a defined approval process for communications, reports, or content before they go out",
+      "You could hand a new staff member a documented process and they could execute it without asking 10 questions",
+    ],
+  },
+  {
+    id: "content", title: "Content & Communications", icon: "??",
+    questions: [
+      "You publish content (blog posts, newsletters, social media, donor communications) on a regular schedule � or you know you should and don't have capacity",
+      "You have a defined audience and you know what they care about",
+      "Content creation currently takes more time than your team has",
+      "You have brand guidelines (even informal ones): voice, colors, key messages",
+      "Someone on your team could review and approve AI-drafted content within 48 hours",
+    ],
+  },
+  {
+    id: "technology", title: "Technology & Data", icon: "??",
+    questions: [
+      "You use at least one cloud-based platform (Google Workspace, Microsoft 365, a CRM, donor management software, etc.)",
+      "Your data is in a system � not primarily in spreadsheets or paper files",
+      "Your tools produce reports, but you don't have time to actually use them",
+      "You are not locked into a single vendor with no export options (you can get your data out)",
+      "You know what software your team uses day-to-day and whether they actually use it",
+    ],
+  },
+  {
+    id: "team", title: "Team & Leadership", icon: "?",
+    questions: [
+      "Leadership (ED, Managing Partner, or equivalent) is open to experimenting with new approaches if the risk is managed",
+      "At least one staff member is genuinely curious about AI � not afraid of it",
+      "Your team has capacity to participate in a short onboarding process (3�5 hours over 2 weeks)",
+      "You have someone who can serve as an internal point of contact for an outside partner",
+      "You are willing to start small and expand � you are not expecting a full transformation in 30 days",
+    ],
+  },
+  {
+    id: "budget", title: "Budget & Timeline", icon: "?",
+    questions: [
+      "You have a technology budget, even a modest one ($500�$2,000/month range)",
+      "You are willing to invest 3�6 months before evaluating ROI � you understand AI is not an overnight fix",
+      "The cost of not solving your capacity problem is real (staff burnout, missed opportunities, slower growth)",
+      "A decision-maker can approve an engagement without a 6-month procurement cycle",
+      "You have evaluated at least one AI tool in the past 12 months, even informally",
+    ],
+  },
+];
+
+const tiers = [
+  { range: [22,25], label: "Ready to Move", bar: "#52B788", message: "You have the processes, data, team openness, and budget to start generating real value from AI now. The question is where to begin � operations, content, or finance.", cta: "Start with an AI Readiness Assessment � a 2-week evaluation that maps your highest-value opportunities and gives you a clear action plan.", ctaLabel: "Book Your Assessment" },
+  { range: [16,21], label: "Ready with Light Prep", bar: "#C05621", message: "A few gaps, but nothing that blocks progress. The right partner will help you address them as part of onboarding � not before.", cta: "You are likely a good fit for a Rosably engagement. Let's talk through what onboarding looks like for your specific situation.", ctaLabel: "Let's Talk" },
+  { range: [10,15], label: "Getting There", bar: "#D4A017", message: "Focus on the sections where you scored lowest. Document your top 3 processes, get your data into a system, and start a simple content calendar. Re-evaluate in 60 days.", cta: "We will tell you honestly what needs to happen first � and we will not sell you something you are not ready for.", ctaLabel: "Have an Honest Conversation" },
+  { range: [0,9],  label: "Foundation First", bar: "#7B2D8B", message: "AI will amplify what you have � so if the foundation is missing, start there. That is not a no. It is a 'not yet, but here is the path.'", cta: "We are happy to talk through what 'foundation first' looks like for your organization � at no cost and no pressure.", ctaLabel: "Talk Through the Path" },
+];
+
+function getTier(score) { return tiers.find(t => score >= t.range[0] && score <= t.range[1]); }
+
+function App() {
+  const [answers, setAnswers] = React.useState({});
+  const [activeSection, setActiveSection] = React.useState(0);
+  const [submitted, setSubmitted] = React.useState(false);
+
+  // Email capture modal state
+  const [showModal, setShowModal] = React.useState(false);
+  const [formName, setFormName] = React.useState('');
+  const [formEmail, setFormEmail] = React.useState('');
+  const [leadSubmitted, setLeadSubmitted] = React.useState(false);
+  const [submitting, setSubmitting] = React.useState(false);
+  const [formError, setFormError] = React.useState('');
+
+  const toggle = (sid, i) => {
+    const key = `${sid}_${i}`;
+    setAnswers(p => ({...p, [key]: !p[key]}));
+  };
+
+  const sectionScore = sid => sections.find(s=>s.id===sid).questions.reduce((a,_,i)=>a+(answers[`${sid}_${i}`]?1:0),0);
+  const totalScore = sections.reduce((a,s)=>a+sectionScore(s.id),0);
+  const totalAnswered = Object.keys(answers).length;
+  const progress = Math.round((totalAnswered/25)*100);
+  const current = sections[activeSection];
+  const currentScore = sectionScore(current.id);
+  const tier = getTier(totalScore);
+
+  const goNext = () => { if(activeSection < sections.length-1) setActiveSection(s=>s+1); else setSubmitted(true); };
+  const goPrev = () => { if(activeSection > 0) setActiveSection(s=>s-1); };
+  const reset = () => { setAnswers({}); setActiveSection(0); setSubmitted(false); setLeadSubmitted(false); setFormName(''); setFormEmail(''); };
+
+  const submitLead = async () => {
+    if (!formName.trim() || !formEmail.trim()) {
+      setFormError('Please enter your name and email.');
+      return;
+    }
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(formEmail)) {
+      setFormError('Please enter a valid email address.');
+      return;
+    }
+    setSubmitting(true);
+    setFormError('');
+
+    const sectionSummary = sections.map(s =>
+      `${s.title.split(' ')[0]}:${sectionScore(s.id)}`
+    ).join(', ');
+
+    const fd = new FormData();
+    fd.append('action', 'wpforms_submit');
+    fd.append('wpforms[id]', String(WPFORMS_FORM_ID));
+    fd.append('wpforms[author]', '');
+    fd.append('wpforms[fields][1]', formName.trim());
+    fd.append('wpforms[fields][2]', formEmail.trim());
+    fd.append('wpforms[fields][3]', String(totalScore));
+    fd.append('wpforms[fields][4]', tier.label);
+    fd.append('wpforms[fields][5]', sectionSummary);
+
+    try {
+      const resp = await fetch('/wp-admin/admin-ajax.php', {
+        method: 'POST',
+        body: fd,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+      });
+      const text = await resp.text();
+      let data = {};
+      try { data = JSON.parse(text); } catch(e) {}
+      if (data.success || resp.ok) {
+        setLeadSubmitted(true);
+        setShowModal(false);
+      } else {
+        setFormError('Something went wrong. Please try again or email us at hello@rosably.com.');
+      }
+    } catch(e) {
+      setFormError('Unable to submit. Please email hello@rosably.com directly.');
+    }
+    setSubmitting(false);
+  };
+
+  const styles = {
+    card: { background:"#2A2A2C", borderRadius:16, padding:"32px 28px", marginBottom:24, border:"1px solid #333" },
+    btn: (active) => ({ padding:"6px 12px", borderRadius:20, border: active?"1px solid #C05621":"1px solid #333", background:active?"#C05621":"transparent", color:active?"#F0EEE9":"#9A9A9A", fontSize:12, cursor:"pointer" }),
+    check: (checked) => ({ display:"flex", alignItems:"flex-start", gap:14, padding:"14px 16px", borderRadius:10, background:checked?"rgba(192,86,33,0.12)":"#1C1C1E", border:checked?"1px solid rgba(192,86,33,0.4)":"1px solid #333", cursor:"pointer", textAlign:"left", width:"100%", marginBottom:10 }),
+    box: (checked) => ({ minWidth:22, height:22, borderRadius:6, border:checked?"2px solid #C05621":"2px solid #555", background:checked?"#C05621":"transparent", display:"flex", alignItems:"center", justifyContent:"center", marginTop:1, flexShrink:0 }),
+  };
+
+  // Email capture modal
+  const modal = showModal && (
+    <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:20}}>
+      <div style={{background:'#2A2A2C',borderRadius:16,padding:'32px 28px',maxWidth:440,width:'100%',border:'1px solid #444'}}>
+        <h3 style={{margin:'0 0 8px',fontSize:'1.2rem',color:'#F0EEE9'}}>Get the Full Guide</h3>
+        <p style={{margin:'0 0 24px',fontSize:'0.9rem',color:'#9A9A9A',lineHeight:1.55}}>Enter your details and we will email your results + the complete AI Readiness Guide instantly.</p>
+        <input
+          type="text" placeholder="First name" value={formName}
+          onChange={e => setFormName(e.target.value)}
+          style={{width:'100%',padding:'12px 14px',borderRadius:8,border:'1px solid #444',background:'#1C1C1E',color:'#F0EEE9',fontSize:'0.9rem',marginBottom:12,display:'block',fontFamily:'Georgia,serif'}}
+        />
+        <input
+          type="email" placeholder="Work email" value={formEmail}
+          onChange={e => setFormEmail(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && submitLead()}
+          style={{width:'100%',padding:'12px 14px',borderRadius:8,border:'1px solid #444',background:'#1C1C1E',color:'#F0EEE9',fontSize:'0.9rem',marginBottom:12,display:'block',fontFamily:'Georgia,serif'}}
+        />
+        {formError && <p style={{color:'#E07A5F',fontSize:'0.85rem',margin:'0 0 12px'}}>{formError}</p>}
+        <button onClick={submitLead} disabled={submitting}
+          style={{width:'100%',padding:'13px',borderRadius:8,background:'#C05621',border:'none',color:'#F0EEE9',fontSize:'0.95rem',fontWeight:600,cursor:submitting?'wait':'pointer',marginBottom:12}}>
+          {submitting ? 'Sending...' : 'Email Me the Guide ?'}
+        </button>
+        <button onClick={() => setShowModal(false)}
+          style={{width:'100%',padding:'10px',borderRadius:8,background:'transparent',border:'1px solid #444',color:'#9A9A9A',fontSize:'0.85rem',cursor:'pointer'}}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+
+  if (submitted) {
+    return (
+      <div style={{maxWidth:680, width:"100%"}}>
+        {modal}
+        <div style={styles.card}>
+          <div style={{textAlign:"center", marginBottom:36}}>
+            <div style={{width:120,height:120,borderRadius:"50%",border:`4px solid ${tier.bar}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",margin:"0 auto 20px",background:"rgba(192,86,33,0.08)"}}>
+              <span style={{fontSize:"2.6rem",fontWeight:700,color:"#F0EEE9",lineHeight:1}}>{totalScore}</span>
+              <span style={{fontSize:14,color:"#9A9A9A"}}>out of 25</span>
+            </div>
+            <div style={{display:"inline-block",padding:"6px 18px",borderRadius:20,background:tier.bar,color:"#fff",fontSize:13,fontWeight:600,marginBottom:16}}>{tier.label}</div>
+            <p style={{fontSize:"1rem",color:"#B0AEA9",lineHeight:1.65}}>{tier.message}</p>
+          </div>
+
+          <div style={{borderTop:"1px solid #333",paddingTop:28,marginBottom:28}}>
+            <h3 style={{fontSize:"0.8rem",letterSpacing:2,textTransform:"uppercase",color:"#9A9A9A",marginBottom:16}}>Score by Section</h3>
+            {sections.map(s => {
+              const sc = sectionScore(s.id);
+              const color = sc>=4?"#52B788":sc>=2?"#C05621":"#E07A5F";
+              return (
+                <div key={s.id} style={{marginBottom:14}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                    <span style={{fontSize:13,color:"#B0AEA9"}}>{s.icon} {s.title}</span>
+                    <span style={{fontSize:13,fontWeight:600,color}}>{sc}/5</span>
+                  </div>
+                  <div style={{height:6,background:"#333",borderRadius:3,overflow:"hidden"}}>
+                    <div style={{height:"100%",width:`${(sc/5)*100}%`,background:color,borderRadius:3}} />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div style={{background:"#1C1C1E",borderRadius:12,padding:24,border:"1px solid #333"}}>
+            <h3 style={{margin:"0 0 10px",fontSize:"1rem",color:"#F0EEE9"}}>What to do next</h3>
+            <p style={{fontSize:"0.9rem",color:"#9A9A9A",lineHeight:1.6,margin:"0 0 20px"}}>{tier.cta}</p>
+            {leadSubmitted ? (
+              <div style={{background:'rgba(45,106,79,0.15)',border:'1px solid #52B788',borderRadius:10,padding:'14px 18px'}}>
+                <p style={{margin:0,fontSize:'0.9rem',color:'#52B788',lineHeight:1.55}}>
+                  ? Check your inbox � your results and the full guide are on their way.
+                </p>
+              </div>
+            ) : (
+              <button onClick={() => setShowModal(true)}
+                style={{display:'inline-block',padding:'12px 24px',background:'#C05621',borderRadius:8,color:'#F0EEE9',border:'none',fontSize:'0.9rem',fontWeight:600,cursor:'pointer'}}>
+                Get the Full Guide ?
+              </button>
+            )}
+          </div>
+        </div>
+        <button onClick={reset} style={{background:"transparent",border:"1px solid #444",color:"#9A9A9A",padding:"10px 20px",borderRadius:8,cursor:"pointer",fontSize:"0.85rem"}}>? Start Over</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{maxWidth:680, width:"100%"}}>
+      <div style={{marginBottom:8,display:"flex",alignItems:"center",gap:12}}>
+        <div style={{width:36,height:36,borderRadius:"50%",background:"#C05621",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:"bold",color:"#F0EEE9"}}>R</div>
+        <span style={{fontSize:13,letterSpacing:2,textTransform:"uppercase",color:"#9A9A9A"}}>Rosably</span>
+      </div>
+      <h1 style={{fontSize:"clamp(1.6rem,4vw,2.4rem)",fontWeight:700,lineHeight:1.2,margin:"0 0 8px",color:"#F0EEE9"}}>AI Readiness Assessment</h1>
+      <p style={{fontSize:"1rem",color:"#9A9A9A",lineHeight:1.6,marginBottom:32}}>25 questions � 15 minutes � Honest answers only</p>
+
+      <div style={{marginBottom:24}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+          <span style={{fontSize:13,color:"#9A9A9A"}}>Section {activeSection+1} of {sections.length}</span>
+          <span style={{fontSize:13,color:"#C05621"}}>{totalAnswered} / 25 answered</span>
+        </div>
+        <div style={{height:4,background:"#333",borderRadius:2,overflow:"hidden"}}>
+          <div style={{height:"100%",width:`${progress}%`,background:"#C05621",borderRadius:2,transition:"width 0.4s ease"}} />
+        </div>
+        <div style={{display:"flex",gap:6,marginTop:14,flexWrap:"wrap"}}>
+          {sections.map((s,i) => {
+            const sc = sectionScore(s.id);
+            const active = i===activeSection;
+            return <button key={s.id} onClick={()=>setActiveSection(i)} style={styles.btn(active)}>{s.icon} {sc>0?`${sc}/5`:s.title.split(" ")[0]}</button>;
+          })}
+        </div>
+      </div>
+
+      <div style={styles.card}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:28}}>
+          <div>
+            <div style={{fontSize:28,marginBottom:8}}>{current.icon}</div>
+            <h2 style={{margin:0,fontSize:"1.2rem",fontWeight:700,color:"#F0EEE9"}}>{current.title}</h2>
+          </div>
+          <div style={{minWidth:56,height:56,borderRadius:"50%",border:`3px solid ${currentScore>0?"#C05621":"#444"}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
+            <span style={{fontSize:"1.3rem",fontWeight:700,color:"#C05621",lineHeight:1}}>{currentScore}</span>
+            <span style={{fontSize:10,color:"#9A9A9A"}}>/ 5</span>
+          </div>
+        </div>
+        {current.questions.map((q,i) => {
+          const checked = !!answers[`${current.id}_${i}`];
+          return (
+            <button key={i} onClick={()=>toggle(current.id,i)} style={styles.check(checked)}>
+              <div style={styles.box(checked)}>{checked&&<span style={{color:"#fff",fontSize:13,fontWeight:"bold"}}>?</span>}</div>
+              <span style={{fontSize:"0.9rem",lineHeight:1.55,color:checked?"#F0EEE9":"#B0AEA9"}}>{q}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        <button onClick={goPrev} disabled={activeSection===0} style={{padding:"12px 24px",borderRadius:8,border:"1px solid #444",background:"transparent",color:activeSection===0?"#555":"#F0EEE9",cursor:activeSection===0?"not-allowed":"pointer",fontSize:"0.9rem"}}>? Previous</button>
+        <button onClick={goNext} style={{padding:"12px 28px",borderRadius:8,background:"#C05621",border:"none",color:"#F0EEE9",cursor:"pointer",fontSize:"0.9rem",fontWeight:600}}>{activeSection===sections.length-1?"See My Results ?":"Next Section ?"}</button>
+      </div>
+
+      {totalAnswered>0&&(
+        <div style={{marginTop:20,padding:"12px 16px",borderRadius:8,background:"#2A2A2C",border:"1px solid #333",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <span style={{fontSize:13,color:"#9A9A9A"}}>Running total</span>
+          <span style={{fontSize:18,fontWeight:700,color:"#C05621"}}>{totalScore} / 25</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
