@@ -31,8 +31,6 @@
 <div id="root"></div>
 <script type="text/babel">
 
-const WPFORMS_FORM_ID = 1969;
-
 const sections = [
   {
     id: "operations", title: "Operations & Processes", icon: "⚙️",
@@ -141,26 +139,20 @@ function App() {
       `${s.title.split(' ')[0]}:${sectionScore(s.id)}`
     ).join(', ');
 
-    const fd = new FormData();
-    fd.append('action', 'wpforms_submit');
-    fd.append('wpforms[id]', String(WPFORMS_FORM_ID));
-    fd.append('wpforms[author]', '');
-    fd.append('wpforms[fields][1]', formName.trim());
-    fd.append('wpforms[fields][2]', formEmail.trim());
-    fd.append('wpforms[fields][3]', String(totalScore));
-    fd.append('wpforms[fields][4]', tier.label);
-    fd.append('wpforms[fields][5]', sectionSummary);
-
     try {
-      const resp = await fetch('/wp-admin/admin-ajax.php', {
+      const resp = await fetch('/wp-json/rosably/v1/submit-assessment', {
         method: 'POST',
-        body: fd,
-        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: formName.trim(),
+          email: formEmail.trim(),
+          score: totalScore,
+          tier: tier.label,
+          section_summary: sectionSummary,
+        }),
       });
-      const text = await resp.text();
-      let data = {};
-      try { data = JSON.parse(text); } catch(e) {}
-      if (data.success || resp.ok) {
+      const data = await resp.json();
+      if (data.success) {
         setLeadSubmitted(true);
         setShowModal(false);
       } else {
