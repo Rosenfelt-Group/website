@@ -43,26 +43,90 @@ function rosably_handle_assessment_submission( WP_REST_Request $request ) {
         return new WP_REST_Response( [ 'success' => false, 'message' => 'Invalid input.' ], 400 );
     }
 
-    $prospect_body =
-        "Hi {$name},\n\n"
-        . "Thank you for completing the Rosably AI Readiness Assessment.\n\n"
-        . "OVERALL SCORE: {$score} out of 25\n"
-        . "READINESS TIER: {$tier}\n\n"
-        . "SCORE BY SECTION:\n{$summary}\n\n"
-        . "---\n\nWHAT THIS MEANS:\n\n"
-        . "[Ready to Move — 22-25] You have the processes, data, team openness, and budget to start generating real value from AI now.\n\n"
-        . "[Ready with Light Prep — 16-21] A few gaps, but nothing that blocks progress. The right partner will help you address them as part of onboarding.\n\n"
-        . "[Getting There — 10-15] Focus on your lowest-scoring sections. Document your top 3 workflows, move your data into a cloud system, and establish a content calendar. Re-evaluate in 60 days.\n\n"
-        . "[Foundation First — under 10] AI amplifies what you have — so if the foundation is missing, start there. That is not a no. It is a path.\n\n"
-        . "---\n\nThe full guide is attached to this email.\n\n"
-        . "If you would like to talk through your results: rosably.com/contact\n\n"
-        . "— The Rosably Team\nrosably.com";
+    $name_esc  = esc_html( $name );
+    $tier_esc  = esc_html( $tier );
+    $score_esc = (int) $score;
+
+    $prospect_body = <<<HTML
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;background:#ffffff;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#ffffff;">
+  <tr>
+    <td align="center" style="padding:40px 20px;">
+      <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;font-family:Arial,sans-serif;font-size:16px;line-height:1.6;color:#1C1C1E;">
+
+        <tr>
+          <td style="padding-bottom:24px;">
+            <p style="margin:0 0 16px 0;">Hi {$name_esc},</p>
+            <p style="margin:0 0 16px 0;">You scored <strong>{$score_esc} out of 25</strong> on the Rosably AI Readiness Assessment. Your tier is <strong>{$tier_esc}</strong>.</p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding-bottom:24px;border-top:1px solid #e5e5e5;padding-top:24px;">
+            <p style="margin:0 0 12px 0;font-weight:bold;">What the tiers mean:</p>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0">
+              <tr>
+                <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;">
+                  <p style="margin:0 0 4px 0;font-weight:bold;">Ready to Move (22&#8211;25)</p>
+                  <p style="margin:0;color:#4a4a4a;font-size:15px;">Your organization has strong foundations. You&#8217;re ready to start implementing AI across operations, content, or finance with minimal prep.</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;">
+                  <p style="margin:0 0 4px 0;font-weight:bold;">Ready with Light Prep (16&#8211;21)</p>
+                  <p style="margin:0;color:#4a4a4a;font-size:15px;">You&#8217;re close. A few gaps in process documentation or technology infrastructure are worth addressing first &#8212; but you could start with a scoped pilot.</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:10px 0;border-bottom:1px solid #f0f0f0;">
+                  <p style="margin:0 0 4px 0;font-weight:bold;">Getting There (10&#8211;15)</p>
+                  <p style="margin:0;color:#4a4a4a;font-size:15px;">You have real potential but some foundational work to do. Focus on your lowest-scoring areas before committing to a full AI engagement.</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:10px 0;">
+                  <p style="margin:0 0 4px 0;font-weight:bold;">Foundation First (0&#8211;9)</p>
+                  <p style="margin:0;color:#4a4a4a;font-size:15px;">AI is not the right first investment right now. Focus on documenting your processes and stabilizing your technology stack first.</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding-bottom:24px;padding-top:24px;border-top:1px solid #e5e5e5;">
+            <p style="margin:0 0 16px 0;">The attached guide goes deeper on each of these areas. Given your score, the sections on {$tier_esc} readiness will be most relevant to where you are right now.</p>
+            <p style="margin:0;">If you want to talk through what your results mean for your organization, you can reach us here: <a href="https://rosably.com/contact" style="color:#C05621;text-decoration:none;">rosably.com/contact</a></p>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding-top:24px;border-top:1px solid #e5e5e5;">
+            <p style="margin:0 0 4px 0;">&#8212; Brian Rosenfelt<br>Rosably</p>
+            <p style="margin:16px 0 0 0;font-size:14px;color:#6b6b6b;font-style:italic;">No obligation. If the timing isn&#8217;t right, the guide is still yours to keep.</p>
+          </td>
+        </tr>
+
+      </table>
+    </td>
+  </tr>
+</table>
+</body>
+</html>
+HTML;
 
     $prospect_email_data = rosably_attach_ebook( [
         'to'          => $email,
-        'subject'     => "Your AI Readiness Results — {$tier}",
+        'subject'     => "Your AI Readiness Results: {$score}/25 \xe2\x80\x94 {$tier}",
         'message'     => $prospect_body,
-        'headers'     => [ 'Content-Type: text/plain; charset=UTF-8' ],
+        'headers'     => [
+            'Content-Type: text/html; charset=UTF-8',
+            'From: Rosably <brian@rosenfeltgroup.com>',
+            'Reply-To: brian@rosenfeltgroup.com',
+        ],
         'attachments' => [],
     ] );
 
