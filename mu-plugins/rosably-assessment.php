@@ -20,18 +20,6 @@ add_filter( 'wpforms_emails_send_email_data', function( $email_data, $notificati
         return rosably_attach_ebook( $email_data );
     }
 
-    // Contact Us (form 1860) — attach only when guide checkbox (field 7) is checked
-    if ( $form_id === 1860 ) {
-        if ( strpos( $to, 'rosenfeltgroup.com' ) !== false ) {
-            return $email_data; // Brian's alert — no attachment
-        }
-        $checked = isset( $fields[7]['value'] ) && ! empty( $fields[7]['value'] );
-        if ( ! $checked ) {
-            return $email_data;
-        }
-        return rosably_attach_ebook( $email_data );
-    }
-
     return $email_data;
 }, 10, 2 );
 
@@ -106,7 +94,7 @@ function rosably_attach_ebook( $email_data ) {
         'posts_per_page' => 1,
         'meta_query'     => [[
             'key'     => '_wp_attached_file',
-            'value'   => 'Rosably-AI-Readiness-Guide',
+            'value'   => 'Rosably-AI-Readiness-Guide.pdf',
             'compare' => 'LIKE',
         ]],
     ];
