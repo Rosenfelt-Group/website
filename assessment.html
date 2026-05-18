@@ -9,10 +9,10 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body { background: #1C1C1E; font-family: Georgia, serif; color: #F0EEE9; }
+  body { background: #1A1A1A; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #F6F1EB; }
   #root { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
-  button { font-family: Georgia, serif; }
-  a { font-family: Georgia, serif; }
+  button { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
+  a { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; }
 
   /* Remove Kadence/WordPress content padding for full-bleed dark background */
   .entry-content, .entry-content > *, .wp-block-group,
@@ -166,8 +166,8 @@ function App() {
 
   const styles = {
     card: { background:"#2A2A2C", borderRadius:16, padding:"32px 28px", marginBottom:24, border:"1px solid #3D3D3F" },
-    btn: (active) => ({ padding:"8px 14px", borderRadius:20, border: active?"1px solid #C05621":"1px solid #3D3D3F", background:active?"#C05621":"transparent", color:active?"#F0EEE9":"#C5C3BE", fontSize:13, cursor:"pointer" }),
-    check: (checked) => ({ display:"flex", alignItems:"flex-start", gap:14, padding:"14px 16px", borderRadius:10, background:checked?"rgba(192,86,33,0.12)":"#1C1C1E", border:checked?"1px solid rgba(192,86,33,0.4)":"1px solid #3D3D3F", cursor:"pointer", textAlign:"left", width:"100%", marginBottom:10 }),
+    btn: (active) => ({ padding:"8px 14px", borderRadius:20, border: active?"1px solid #C05621":"1px solid #3D3D3F", background:active?"#C05621":"transparent", color:active?"#F6F1EB":"#C5C3BE", fontSize:13, cursor:"pointer" }),
+    check: (checked) => ({ display:"flex", alignItems:"flex-start", gap:14, padding:"14px 16px", borderRadius:10, background:checked?"rgba(192,86,33,0.12)":"#1A1A1A", border:checked?"1px solid rgba(192,86,33,0.4)":"1px solid #3D3D3F", cursor:"pointer", textAlign:"left", width:"100%", marginBottom:10 }),
     box: (checked) => ({ minWidth:22, height:22, borderRadius:6, border:checked?"2px solid #C05621":"2px solid #555", background:checked?"#C05621":"transparent", display:"flex", alignItems:"center", justifyContent:"center", marginTop:1, flexShrink:0 }),
   };
 
@@ -175,22 +175,22 @@ function App() {
   const modal = showModal && (
     <div style={{position:'fixed',top:0,left:0,right:0,bottom:0,background:'rgba(0,0,0,0.8)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:20}}>
       <div style={{background:'#2A2A2C',borderRadius:16,padding:'32px 28px',maxWidth:440,width:'100%',border:'1px solid #444'}}>
-        <h3 style={{margin:'0 0 8px',fontSize:'1.2rem',color:'#F0EEE9'}}>Get the Full Guide</h3>
+        <h3 style={{margin:'0 0 8px',fontSize:'1.2rem',color:'#F6F1EB'}}>Get the Full Guide</h3>
         <p style={{margin:'0 0 24px',fontSize:'0.9rem',color:'#C5C3BE',lineHeight:1.55}}>Enter your details and we will email your results + the complete AI Readiness Guide instantly.</p>
         <input
           type="text" placeholder="First name" value={formName}
           onChange={e => setFormName(e.target.value)}
-          style={{width:'100%',padding:'12px 14px',borderRadius:8,border:'1px solid #444',background:'#1C1C1E',color:'#F0EEE9',fontSize:'0.9rem',marginBottom:12,display:'block',fontFamily:'Georgia,serif'}}
+          style={{width:'100%',padding:'12px 14px',borderRadius:8,border:'1px solid #444',background:'#1A1A1A',color:'#F6F1EB',fontSize:'0.9rem',marginBottom:12,display:'block',fontFamily:"'Plus Jakarta Sans',system-ui,sans-serif"}}
         />
         <input
           type="email" placeholder="Work email" value={formEmail}
           onChange={e => setFormEmail(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && submitLead()}
-          style={{width:'100%',padding:'12px 14px',borderRadius:8,border:'1px solid #444',background:'#1C1C1E',color:'#F0EEE9',fontSize:'0.9rem',marginBottom:12,display:'block',fontFamily:'Georgia,serif'}}
+          style={{width:'100%',padding:'12px 14px',borderRadius:8,border:'1px solid #444',background:'#1A1A1A',color:'#F6F1EB',fontSize:'0.9rem',marginBottom:12,display:'block',fontFamily:"'Plus Jakarta Sans',system-ui,sans-serif"}}
         />
         {formError && <p style={{color:'#E07A5F',fontSize:'0.85rem',margin:'0 0 12px'}}>{formError}</p>}
         <button onClick={submitLead} disabled={submitting}
-          style={{width:'100%',padding:'13px',borderRadius:8,background:'#C05621',border:'none',color:'#F0EEE9',fontSize:'0.95rem',fontWeight:600,cursor:submitting?'wait':'pointer',marginBottom:12}}>
+          style={{width:'100%',padding:'13px',borderRadius:8,background:'#C05621',border:'none',color:'#F6F1EB',fontSize:'0.95rem',fontWeight:600,cursor:submitting?'wait':'pointer',marginBottom:12}}>
           {submitting ? 'Sending...' : 'Email Me the Guide →'}
         </button>
         <button onClick={() => setShowModal(false)}
@@ -208,7 +208,7 @@ function App() {
         <div style={styles.card}>
           <div style={{textAlign:"center", marginBottom:36}}>
             <div style={{width:120,height:120,borderRadius:"50%",border:`4px solid ${tier.bar}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",margin:"0 auto 20px",background:"rgba(192,86,33,0.08)"}}>
-              <span style={{fontSize:"2.6rem",fontWeight:700,color:"#F0EEE9",lineHeight:1}}>{totalScore}</span>
+              <span style={{fontSize:"2.6rem",fontWeight:700,color:"#F6F1EB",lineHeight:1}}>{totalScore}</span>
               <span style={{fontSize:14,color:"#C5C3BE"}}>out of 25</span>
             </div>
             <div style={{display:"inline-block",padding:"6px 18px",borderRadius:20,background:tier.bar,color:"#fff",fontSize:13,fontWeight:600,marginBottom:16}}>{tier.label}</div>
@@ -234,8 +234,8 @@ function App() {
             })}
           </div>
 
-          <div style={{background:"#1C1C1E",borderRadius:12,padding:24,border:"1px solid #3D3D3F"}}>
-            <h3 style={{margin:"0 0 10px",fontSize:"1rem",color:"#F0EEE9"}}>What to do next</h3>
+          <div style={{background:"#1A1A1A",borderRadius:12,padding:24,border:"1px solid #3D3D3F"}}>
+            <h3 style={{margin:"0 0 10px",fontSize:"1rem",color:"#F6F1EB"}}>What to do next</h3>
             <p style={{fontSize:"0.9rem",color:"#C5C3BE",lineHeight:1.6,margin:"0 0 20px"}}>{tier.cta}</p>
             {leadSubmitted ? (
               <div style={{background:'rgba(45,106,79,0.15)',border:'1px solid #52B788',borderRadius:10,padding:'14px 18px'}}>
@@ -245,7 +245,7 @@ function App() {
               </div>
             ) : (
               <button onClick={() => setShowModal(true)}
-                style={{display:'inline-block',padding:'12px 24px',background:'#C05621',borderRadius:8,color:'#F0EEE9',border:'none',fontSize:'0.9rem',fontWeight:600,cursor:'pointer'}}>
+                style={{display:'inline-block',padding:'12px 24px',background:'#C05621',borderRadius:8,color:'#F6F1EB',border:'none',fontSize:'0.9rem',fontWeight:600,cursor:'pointer'}}>
                 Get the Full Guide →
               </button>
             )}
@@ -261,7 +261,7 @@ function App() {
       <div style={{marginBottom:8,display:"flex",alignItems:"center",gap:12}}>
         <img src="https://rosably.com/wp-content/uploads/2021/02/site-logo-white.svg" alt="Rosably" style={{height:30,width:"auto"}} />
       </div>
-      <h1 style={{fontSize:"clamp(1.6rem,4vw,2.4rem)",fontWeight:700,lineHeight:1.2,margin:"0 0 8px",color:"#F0EEE9"}}>AI Readiness Assessment</h1>
+      <h1 style={{fontSize:"clamp(1.6rem,4vw,2.4rem)",fontWeight:700,lineHeight:1.2,margin:"0 0 8px",color:"#F6F1EB"}}>AI Readiness Assessment</h1>
       <p style={{fontSize:"1rem",color:"#C5C3BE",lineHeight:1.6,marginBottom:32}}>25 questions · 15 minutes · Honest answers only</p>
 
       <div style={{marginBottom:24}}>
@@ -285,7 +285,7 @@ function App() {
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:28}}>
           <div>
             <div style={{fontSize:28,marginBottom:8}}>{current.icon}</div>
-            <h2 style={{margin:0,fontSize:"1.2rem",fontWeight:700,color:"#F0EEE9"}}>{current.title}</h2>
+            <h2 style={{margin:0,fontSize:"1.2rem",fontWeight:700,color:"#F6F1EB"}}>{current.title}</h2>
           </div>
           <div style={{minWidth:56,height:56,borderRadius:"50%",border:`3px solid ${currentScore>0?"#C05621":"#555"}`,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
             <span style={{fontSize:"1.3rem",fontWeight:700,color:"#C05621",lineHeight:1}}>{currentScore}</span>
@@ -297,15 +297,15 @@ function App() {
           return (
             <button key={i} onClick={()=>toggle(current.id,i)} style={styles.check(checked)}>
               <div style={styles.box(checked)}>{checked&&<span style={{color:"#fff",fontSize:13,fontWeight:"bold"}}>✓</span>}</div>
-              <span style={{fontSize:"0.9rem",lineHeight:1.55,color:checked?"#F0EEE9":"#E8E6E0"}}>{q}</span>
+              <span style={{fontSize:"0.9rem",lineHeight:1.55,color:checked?"#F6F1EB":"#E8E6E0"}}>{q}</span>
             </button>
           );
         })}
       </div>
 
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-        <button onClick={goPrev} disabled={activeSection===0} style={{padding:"12px 24px",borderRadius:8,border:"1px solid #444",background:"transparent",color:activeSection===0?"#555":"#F0EEE9",cursor:activeSection===0?"not-allowed":"pointer",fontSize:"0.9rem"}}>← Previous</button>
-        <button onClick={goNext} style={{padding:"12px 28px",borderRadius:8,background:"#C05621",border:"none",color:"#F0EEE9",cursor:"pointer",fontSize:"0.9rem",fontWeight:600}}>{activeSection===sections.length-1?"See My Results →":"Next Section →"}</button>
+        <button onClick={goPrev} disabled={activeSection===0} style={{padding:"12px 24px",borderRadius:8,border:"1px solid #444",background:"transparent",color:activeSection===0?"#555":"#F6F1EB",cursor:activeSection===0?"not-allowed":"pointer",fontSize:"0.9rem"}}>← Previous</button>
+        <button onClick={goNext} style={{padding:"12px 28px",borderRadius:8,background:"#C05621",border:"none",color:"#F6F1EB",cursor:"pointer",fontSize:"0.9rem",fontWeight:600}}>{activeSection===sections.length-1?"See My Results →":"Next Section →"}</button>
       </div>
 
       {totalAnswered>0&&(
