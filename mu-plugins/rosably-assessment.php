@@ -14,7 +14,7 @@ add_filter( 'wpforms_emails_send_email_data', function( $email_data, $notificati
 
     // Assessment Lead Capture (form 1969) — attach to every prospect email
     if ( $form_id === 1969 ) {
-        if ( strpos( $to, 'rosenfeltgroup.com' ) !== false ) {
+        if ( strpos( $to, 'rosably.com' ) !== false ) {
             return $email_data; // Brian's alert — no attachment
         }
         return rosably_attach_ebook( $email_data );
@@ -124,8 +124,8 @@ HTML;
         'message'     => $prospect_body,
         'headers'     => [
             'Content-Type: text/html; charset=UTF-8',
-            'From: Rosably <brian@rosenfeltgroup.com>',
-            'Reply-To: brian@rosenfeltgroup.com',
+            'From: Rosably <brian@rosably.com>',
+            'Reply-To: brian@rosably.com',
         ],
         'attachments' => [],
     ] );
@@ -139,7 +139,7 @@ HTML;
     );
 
     wp_mail(
-        'brian@rosenfeltgroup.com',
+        'brian@rosably.com',
         "New Assessment Lead — {$tier} ({$score}/25)",
         "New assessment submission:\n\nName:     {$name}\nEmail:    {$email}\nScore:    {$score} / 25\nTier:     {$tier}\nSections: {$summary}"
     );
