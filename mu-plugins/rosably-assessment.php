@@ -161,13 +161,19 @@ function rosably_handle_generate_snapshot( WP_REST_Request $request ) {
         return new WP_REST_Response( [ 'success' => false, 'message' => 'Missing required fields.' ], 400 );
     }
 
-    // Rate limit: 3 per hour per IP.
-    $ip_key = 'rosably_snapshot_' . md5( rosably_client_ip() );
-    $count  = (int) get_transient( $ip_key );
-    if ( $count >= 3 ) {
+    // Rate limit. The per-IP cap is best-effort fairness only — behind a proxy the
+    // client IP comes from X-Forwarded-For, which the client can spoof to mint fresh
+    // buckets. The global hourly cap is the real backstop: it hard-bounds Anthropic
+    // spend even if an attacker rotates the per-IP key on every request.
+    $ip_key       = 'rosably_snapshot_' . md5( rosably_client_ip() );
+    $global_key   = 'rosably_snapshot_global';
+    $ip_count     = (int) get_transient( $ip_key );
+    $global_count = (int) get_transient( $global_key );
+    if ( $ip_count >= 3 || $global_count >= 40 ) {
         return new WP_REST_Response( [ 'success' => false, 'message' => 'Too many requests' ], 429 );
     }
-    set_transient( $ip_key, $count + 1, HOUR_IN_SECONDS );
+    set_transient( $ip_key, $ip_count + 1, HOUR_IN_SECONDS );
+    set_transient( $global_key, $global_count + 1, HOUR_IN_SECONDS );
 
     $key = rosably_secret( 'ROSABLY_ANTHROPIC_API_KEY' );
     if ( ! $key ) {
