@@ -54,6 +54,15 @@ add_action( 'rest_api_init', function() {
         'callback'            => 'rosably_handle_create_checkout',
         'permission_callback' => '__return_true',
     ] );
+
+    // Direct-link buy path for the /services/ page CTAs. GET so a plain <a href>
+    // works; creates a fresh Checkout Session per click (sessions expire) and
+    // 302-redirects to it. Email is collected on the Stripe Checkout page itself.
+    register_rest_route( 'rosably/v1', '/buy/stack-audit', [
+        'methods'             => 'GET',
+        'callback'            => 'rosably_handle_buy_stack_audit',
+        'permission_callback' => '__return_true',
+    ] );
 } );
 
 /* -------------------------------------------------------------------------
@@ -241,6 +250,72 @@ function rosably_handle_generate_snapshot( WP_REST_Request $request ) {
  * 3) Stripe Checkout session for the AI Opportunity Review ($750)
  * ---------------------------------------------------------------------- */
 
+/**
+ * Create a fresh Stripe Checkout Session for the AI Opportunity Review ($750).
+ * Sessions expire, so this is always called per-request — never cache the URL.
+ *
+ * $email and $org are optional. When $email is empty, Stripe collects the email
+ * on the Checkout page itself (the direct-link path from /services/). $org is
+ * added to metadata only when present so the n8n handler can enrich the work item.
+ *
+ * Returns [ 'url' => string ] on success, or [ 'error' => 'no_key' | 'failed' ].
+ */
+function rosably_create_checkout_session( $email = '', $org = '', $source = 'quiz' ) {
+    $key = rosably_secret( 'ROSABLY_STRIPE_SECRET_KEY' );
+    if ( ! $key ) {
+        return [ 'error' => 'no_key' ];
+    }
+
+    $metadata = [
+        'product' => 'ai_opportunity_review',
+        'source'  => $source,
+    ];
+    if ( $org ) {
+        $metadata['org_name'] = $org;
+    }
+
+    // Array body → wp_remote_post form-encodes nested keys (line_items[0][price], etc.).
+    $body = [
+        'payment_method_types' => [ 'card' ],
+        'line_items'           => [
+            [ 'price' => 'price_1TYriNLcDxAuVnkzQXYuA2Il', 'quantity' => 1 ],
+        ],
+        'mode'        => 'payment',
+        'success_url' => 'https://rosably.com/stack-audit-confirmed/',
+        'cancel_url'  => 'https://rosably.com/services/',
+        'metadata'    => $metadata,
+    ];
+    if ( $email ) {
+        $body['customer_email'] = $email;
+    }
+
+    $response = wp_remote_post( 'https://api.stripe.com/v1/checkout/sessions', [
+        'timeout' => 20,
+        'headers' => [ 'Authorization' => 'Bearer ' . $key ],
+        'body'    => $body,
+    ] );
+
+    if ( is_wp_error( $response ) ) {
+        error_log( 'rosably checkout-session: ' . $response->get_error_message() );
+        return [ 'error' => 'failed' ];
+    }
+
+    $code  = wp_remote_retrieve_response_code( $response );
+    $rbody = json_decode( wp_remote_retrieve_body( $response ), true );
+
+    if ( $code !== 200 || empty( $rbody['url'] ) ) {
+        $detail = is_array( $rbody ) && isset( $rbody['error']['message'] ) ? $rbody['error']['message'] : "HTTP {$code}";
+        error_log( 'rosably checkout-session Stripe error: ' . $detail );
+        return [ 'error' => 'failed' ];
+    }
+
+    return [ 'url' => $rbody['url'] ];
+}
+
+/**
+ * POST /create-checkout — called from the quiz flow with org_name + email
+ * (which pre-fills the Stripe Checkout page). Returns JSON { url }.
+ */
 function rosably_handle_create_checkout( WP_REST_Request $request ) {
     $org   = sanitize_text_field( $request->get_param( 'org_name' ) );
     $email = sanitize_email( $request->get_param( 'email' ) );
@@ -249,47 +324,30 @@ function rosably_handle_create_checkout( WP_REST_Request $request ) {
         return new WP_REST_Response( [ 'success' => false, 'message' => 'Invalid input.' ], 400 );
     }
 
-    $key = rosably_secret( 'ROSABLY_STRIPE_SECRET_KEY' );
-    if ( ! $key ) {
+    $result = rosably_create_checkout_session( $email, $org, 'quiz' );
+
+    if ( ! empty( $result['url'] ) ) {
+        return new WP_REST_Response( [ 'url' => $result['url'] ], 200 );
+    }
+    if ( ( $result['error'] ?? '' ) === 'no_key' ) {
         return new WP_REST_Response( [ 'success' => false, 'message' => 'Checkout service unavailable.' ], 500 );
     }
+    return new WP_REST_Response( [ 'success' => false, 'message' => 'Could not start checkout.' ], 502 );
+}
 
-    $response = wp_remote_post( 'https://api.stripe.com/v1/checkout/sessions', [
-        'timeout' => 20,
-        'headers' => [
-            'Authorization' => 'Bearer ' . $key,
-        ],
-        // Array body → wp_remote_post form-encodes nested keys (line_items[0][price], etc.).
-        'body' => [
-            'payment_method_types' => [ 'card' ],
-            'line_items'           => [
-                [ 'price' => 'price_1TYriNLcDxAuVnkzQXYuA2Il', 'quantity' => 1 ],
-            ],
-            'mode'           => 'payment',
-            'success_url'    => 'https://rosably.com/stack-audit-confirmed/',
-            'cancel_url'     => 'https://rosably.com/services/',
-            'customer_email' => $email,
-            'metadata'       => [
-                'org_name' => $org,
-                'product'  => 'ai_opportunity_review',
-                'source'   => 'quiz',
-            ],
-        ],
-    ] );
+/**
+ * GET /buy/stack-audit — direct-link path from the /services/ page CTAs.
+ * No params: email is collected on the Stripe Checkout page. 302-redirects to
+ * the fresh session URL, or back to /services/ with a flag if Stripe fails.
+ */
+function rosably_handle_buy_stack_audit( WP_REST_Request $request ) {
+    $result = rosably_create_checkout_session( '', '', 'services_page' );
 
-    if ( is_wp_error( $response ) ) {
-        error_log( 'rosably create-checkout: ' . $response->get_error_message() );
-        return new WP_REST_Response( [ 'success' => false, 'message' => 'Could not start checkout.' ], 502 );
+    if ( ! empty( $result['url'] ) ) {
+        wp_redirect( $result['url'], 302 );
+        exit;
     }
 
-    $code = wp_remote_retrieve_response_code( $response );
-    $body = json_decode( wp_remote_retrieve_body( $response ), true );
-
-    if ( $code !== 200 || empty( $body['url'] ) ) {
-        $detail = is_array( $body ) && isset( $body['error']['message'] ) ? $body['error']['message'] : "HTTP {$code}";
-        error_log( 'rosably create-checkout Stripe error: ' . $detail );
-        return new WP_REST_Response( [ 'success' => false, 'message' => 'Could not start checkout.' ], 502 );
-    }
-
-    return new WP_REST_Response( [ 'url' => $body['url'] ], 200 );
+    wp_redirect( 'https://rosably.com/services/?checkout=error', 302 );
+    exit;
 }
