@@ -277,10 +277,11 @@ function App() {
     return () => { cancelled = true; };
   }, [view]);
 
-  // Once results are shown, persist the snapshot and send the confirmation email.
-  // snapshotSaved ref prevents double-firing if React re-renders.
+  // Once results are shown AND the lead row is persisted, save snapshot + send email.
+  // Waits for both generate-snapshot (view/snapshot) and submit-assessment (leadId/saveToken)
+  // since either can complete first. snapshotSaved ref prevents double-firing.
   React.useEffect(() => {
-    if (view !== "results" || !snapshot || snapshotSaved.current) return;
+    if (view !== "results" || !snapshot || !leadId || !saveToken || snapshotSaved.current) return;
     snapshotSaved.current = true;
     fetch("/wp-json/rosably/v1/save-snapshot", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -293,7 +294,7 @@ function App() {
         org: orgName.trim(),
       }),
     }).catch(() => {});
-  }, [view, snapshot]);
+  }, [view, snapshot, leadId, saveToken]);
 
   const buyNow = async () => {
     setCheckoutBusy(true); setCheckoutErr("");
