@@ -53,21 +53,27 @@ function Logo() {
   );
 }
 
+// Split on **…** and return React elements — no dangerouslySetInnerHTML.
+function parseBold(text) {
+  return text.split(/\*\*(.*?)\*\*/g).map((part, i) =>
+    i % 2 === 1 ? <strong key={i}>{part}</strong> : part
+  );
+}
+
 function renderSnapshot(text) {
   if (!text) return null;
   return text.split('\n').map((line, i) => {
     if (!line.trim()) return <div key={i} style={{ height: 10 }} />;
-    const bold = line.replace(/\*\*(.*?)\*\*/g, (_, m) => `<strong>${m}</strong>`);
     if (line.startsWith('- ')) {
       return <div key={i} style={{ display: "flex", gap: 10, margin: "4px 0" }}>
         <span style={{ color: ACCENT, flexShrink: 0, marginTop: 2 }}>▸</span>
-        <span style={{ fontSize: "0.97rem", lineHeight: 1.65, color: TEXT }} dangerouslySetInnerHTML={{ __html: bold.slice(2) }} />
+        <span style={{ fontSize: "0.97rem", lineHeight: 1.65, color: TEXT }}>{parseBold(line.slice(2))}</span>
       </div>;
     }
     if (line.startsWith('**') && line.endsWith('**')) {
       return <p key={i} style={{ fontWeight: 700, fontSize: "1.05rem", color: TEXT, margin: "18px 0 6px" }}>{line.replace(/\*\*/g, '')}</p>;
     }
-    return <p key={i} style={{ fontSize: "0.97rem", lineHeight: 1.65, color: TEXT, margin: "4px 0" }} dangerouslySetInnerHTML={{ __html: bold }} />;
+    return <p key={i} style={{ fontSize: "0.97rem", lineHeight: 1.65, color: TEXT, margin: "4px 0" }}>{parseBold(line)}</p>;
   });
 }
 

@@ -182,14 +182,22 @@ function rosably_handle_assessment_submission( WP_REST_Request $request ) {
     // Prospect confirmation email moves to /save-snapshot, sent once the snapshot
     // text exists and we have a durable results URL to include.
 
+    // Issue a save_token (HMAC of lead_id) so only this session can call /save-snapshot.
+    $save_token = null;
+    if ( ! empty( $lead['id'] ) ) {
+        $hmac_key   = rosably_secret( 'ROSABLY_SUPABASE_SERVICE_KEY' ) ?: (string) getenv( 'ROSABLY_SUPABASE_SERVICE_KEY' );
+        $save_token = hash_hmac( 'sha256', $lead['id'], $hmac_key );
+    }
+
     // The on-screen snapshot is the deliverable; never block results on a mail hiccup.
     // If Supabase persistence failed, return 207 so the client can surface a soft warning.
     $status = ( $lead_warning ?? false ) ? 207 : 200;
     return new WP_REST_Response( [
-        'success'   => true,
-        'persisted' => ! ( $lead_warning ?? false ),
-        'lead_id'   => $lead['id']    ?? null,
-        'token'     => $lead['token'] ?? null,
+        'success'    => true,
+        'persisted'  => ! ( $lead_warning ?? false ),
+        'lead_id'    => $lead['id']    ?? null,
+        'token'      => $lead['token'] ?? null,
+        'save_token' => $save_token,
     ], $status );
 }
 
@@ -205,11 +213,12 @@ function rosably_handle_assessment_submission( WP_REST_Request $request ) {
  * the email can include a link back to the results).
  */
 function rosably_handle_save_snapshot( WP_REST_Request $request ) {
-    $lead_id  = sanitize_text_field( $request->get_param( 'lead_id' ) );
-    $snapshot = sanitize_textarea_field( $request->get_param( 'snapshot' ) );
-    $email    = sanitize_email( $request->get_param( 'email' ) );
-    $name     = sanitize_text_field( $request->get_param( 'name' ) );
-    $org      = sanitize_text_field( $request->get_param( 'org' ) );
+    $lead_id    = sanitize_text_field( $request->get_param( 'lead_id' ) );
+    $snapshot   = sanitize_textarea_field( $request->get_param( 'snapshot' ) );
+    $save_token = sanitize_text_field( $request->get_param( 'save_token' ) );
+    $email      = sanitize_email( $request->get_param( 'email' ) );
+    $name       = sanitize_text_field( $request->get_param( 'name' ) );
+    $org        = sanitize_text_field( $request->get_param( 'org' ) );
 
     if ( ! $snapshot ) {
         return new WP_REST_Response( [ 'success' => false, 'message' => 'Snapshot text required.' ], 400 );
@@ -217,6 +226,19 @@ function rosably_handle_save_snapshot( WP_REST_Request $request ) {
 
     $supa_url = rosably_secret( 'ROSABLY_SUPABASE_URL' ) ?: (string) getenv( 'ROSABLY_SUPABASE_URL' );
     $supa_key = rosably_secret( 'ROSABLY_SUPABASE_SERVICE_KEY' ) ?: (string) getenv( 'ROSABLY_SUPABASE_SERVICE_KEY' );
+
+    // Verify the HMAC save_token issued by /submit-assessment — ensures only the
+    // originating session can write a snapshot to this lead record.
+    if ( $lead_id && $supa_key ) {
+        $expected = hash_hmac( 'sha256', $lead_id, $supa_key );
+        if ( ! $save_token || ! hash_equals( $expected, $save_token ) ) {
+            return new WP_REST_Response( [ 'success' => false, 'message' => 'Unauthorized.' ], 403 );
+        }
+    }
+
+    // Strip all HTML tags before storage — defence-in-depth against stored XSS
+    // even if the rendering layer ever changes.
+    $snapshot = wp_strip_all_tags( $snapshot );
 
     $token       = null;
     $results_url = null;

@@ -202,6 +202,7 @@ function App() {
 
   const [snapshot, setSnapshot] = React.useState("");
   const [leadId, setLeadId] = React.useState(null);
+  const [saveToken, setSaveToken] = React.useState(null);
   const [submitWarn, setSubmitWarn] = React.useState(false);
   const snapshotSaved = React.useRef(false);
   const [checkoutBusy, setCheckoutBusy] = React.useState(false);
@@ -258,6 +259,7 @@ function App() {
       .then(d => {
         if (!d || (!d.success && d.status !== 207)) { if (!cancelled) setSubmitWarn(true); return; }
         if (d.lead_id) setLeadId(d.lead_id);
+        if (d.save_token) setSaveToken(d.save_token);
       })
       .catch(() => { if (!cancelled) setSubmitWarn(true); });
     // (b) the snapshot — we wait on this
@@ -284,6 +286,7 @@ function App() {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         lead_id: leadId,
+        save_token: saveToken,
         snapshot,
         email: email.trim(),
         name: firstName.trim(),
