@@ -69,6 +69,54 @@ add_action( 'rest_api_init', function() {
  * 1) Lead capture + emails
  * ---------------------------------------------------------------------- */
 
+/**
+ * Persist a quiz lead to Supabase assessment_leads.
+ * Returns true on success, false on any failure (non-blocking — email is the backup).
+ */
+function rosably_persist_lead( $name, $email, $org, $type, $stage, array $pain, $blocker, $vision ) {
+    // Try PHP constant first (rosably-secrets.php), fall back to env var (docker-compose).
+    $url = rosably_secret( 'ROSABLY_SUPABASE_URL' ) ?: (string) getenv( 'ROSABLY_SUPABASE_URL' );
+    $key = rosably_secret( 'ROSABLY_SUPABASE_SERVICE_KEY' ) ?: (string) getenv( 'ROSABLY_SUPABASE_SERVICE_KEY' );
+    if ( ! $url || ! $key ) {
+        error_log( 'rosably persist_lead: Supabase credentials not configured.' );
+        return false;
+    }
+
+    $response = wp_remote_post( rtrim( $url, '/' ) . '/rest/v1/assessment_leads', [
+        'timeout' => 10,
+        'headers' => [
+            'apikey'        => $key,
+            'Authorization' => 'Bearer ' . $key,
+            'Content-Type'  => 'application/json',
+            'Prefer'        => 'return=minimal',
+        ],
+        'body' => wp_json_encode( [
+            'name'           => $name,
+            'email'          => $email,
+            'org'            => $org,
+            'org_type'       => $type,
+            'ai_stage'       => $stage,
+            'pain_points'    => $pain,
+            'blocker'        => $blocker,
+            'success_vision' => $vision,
+            'source'         => 'quiz',
+        ] ),
+    ] );
+
+    if ( is_wp_error( $response ) ) {
+        error_log( 'rosably persist_lead wp_error: ' . $response->get_error_message() );
+        return false;
+    }
+
+    $code = wp_remote_retrieve_response_code( $response );
+    if ( $code < 200 || $code >= 300 ) {
+        error_log( 'rosably persist_lead Supabase HTTP ' . $code . ': ' . wp_remote_retrieve_body( $response ) );
+        return false;
+    }
+
+    return true;
+}
+
 function rosably_handle_assessment_submission( WP_REST_Request $request ) {
     $name    = sanitize_text_field( $request->get_param( 'name' ) );
     $email   = sanitize_email( $request->get_param( 'email' ) );
@@ -84,6 +132,14 @@ function rosably_handle_assessment_submission( WP_REST_Request $request ) {
 
     if ( ! $name || ! is_email( $email ) ) {
         return new WP_REST_Response( [ 'success' => false, 'message' => 'Invalid input.' ], 400 );
+    }
+
+    // Persist to Supabase before email — a filtered/lost email no longer loses the lead.
+    $persisted = rosably_persist_lead( $name, $email, $org, $type, $stage, $pain, $blocker, $vision );
+    if ( ! $persisted ) {
+        // Non-fatal: emails are the backup. Log already written inside persist_lead.
+        // Return 207 so the React app can surface a non-blocking warning.
+        $lead_warning = true;
     }
 
     // Brian lead alert (plain text).
@@ -149,7 +205,9 @@ HTML;
     );
 
     // The on-screen snapshot is the deliverable; never block results on a mail hiccup.
-    return new WP_REST_Response( [ 'success' => true ], 200 );
+    // If Supabase persistence failed, return 207 so the client can surface a soft warning.
+    $status = ( $lead_warning ?? false ) ? 207 : 200;
+    return new WP_REST_Response( [ 'success' => true, 'persisted' => ! ( $lead_warning ?? false ) ], $status );
 }
 
 /* -------------------------------------------------------------------------

@@ -201,6 +201,7 @@ function App() {
   const [gateErr, setGateErr] = React.useState("");
 
   const [snapshot, setSnapshot] = React.useState("");
+  const [submitWarn, setSubmitWarn] = React.useState(false);
   const [checkoutBusy, setCheckoutBusy] = React.useState(false);
   const [checkoutErr, setCheckoutErr] = React.useState("");
 
@@ -246,11 +247,13 @@ function App() {
       org_type: answers.q1, ai_stage: answers.q2, pain_points: answers.q3,
       blocker: answers.q4, success_vision: answers.q5.trim(),
     };
-    // (a) lead capture + alert — fire and forget
+    // (a) lead capture + alert — check response; failure is non-blocking but surfaced
     fetch("/wp-json/rosably/v1/submit-assessment", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: firstName.trim(), email: email.trim(), org: orgName.trim(), ...payload }),
-    }).catch(() => {});
+    })
+      .then(r => { if (!r.ok && r.status !== 207) setSubmitWarn(true); })
+      .catch(() => { if (!cancelled) setSubmitWarn(true); });
     // (b) the snapshot — we wait on this
     fetch("/wp-json/rosably/v1/generate-snapshot", {
       method: "POST", headers: { "Content-Type": "application/json" },
@@ -331,6 +334,12 @@ function App() {
           <p style={{ fontSize: "0.95rem", color: MUTED, lineHeight: 1.65, margin: "0 0 22px" }}>
             Your AI Opportunity Review includes a full assessment, detailed findings report, and a prioritized roadmap — built specifically for {orgName.trim()}.
           </p>
+
+          {submitWarn && (
+            <p style={{ fontSize: "0.85rem", color: MUTED, margin: "0 0 14px", padding: "10px 14px", background: "#2A2A2C", borderRadius: 6, borderLeft: `3px solid ${ACCENT}` }}>
+              We had a hiccup saving your info — Brian will follow up manually within one business day.
+            </p>
+          )}
 
           {checkoutErr && <p style={{ color: "#E07A5F", fontSize: "0.9rem", margin: "0 0 12px" }}>{checkoutErr}</p>}
 
