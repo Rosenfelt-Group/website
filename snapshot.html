@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your AI Snapshot — Rosably</title>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" integrity="sha384-ezQ6HS3FLspd9te19o2McUV6FAK091+GG7KO54f/R8DKgCDi7fULhapNrd5LY+vG" crossorigin="anonymous"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #1A1A1A; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #F6F1EB; }
+  #root { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 40px 20px; }
+  .entry-content, .entry-content > *, .wp-block-group,
+  .content-container, .content-container > *,
+  .site-content, .wp-site-blocks {
+    padding-left: 0 !important; padding-right: 0 !important; max-width: 100% !important;
+  }
+  .entry-content { padding-top: 0 !important; padding-bottom: 0 !important; }
+  .wp-block-html { margin: 0 !important; }
+  .entry-header, .entry-title, .page-header { display: none !important; }
+  @keyframes rosably-spin { to { transform: rotate(360deg); } }
+  .rosably-cta-row { display: flex; gap: 12px; flex-direction: column; }
+  @media (min-width: 560px) { .rosably-cta-row { flex-direction: row; } .rosably-cta-row > * { flex: 1; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+const ACCENT = "#C05621";
+const BG = "#1A1A1A";
+const CARD = "#2A2A2C";
+const BORDER = "#3D3D3F";
+const TEXT = "#F6F1EB";
+const MUTED = "#ABABAB";
+
+const styles = {
+  shell:   { width: "100%", maxWidth: 680, display: "flex", flexDirection: "column", gap: 16 },
+  card:    { background: CARD, border: `1px solid ${BORDER}`, borderRadius: 12, padding: "36px 32px" },
+  h1:      { fontSize: "1.5rem", fontWeight: 800, color: TEXT, lineHeight: 1.2, margin: "0 0 6px" },
+  primary: { display: "inline-block", padding: "14px 28px", background: ACCENT, color: "#fff", textDecoration: "none", borderRadius: 8, fontWeight: "bold", fontSize: "1rem", textAlign: "center", cursor: "pointer", border: "none" },
+  ghost:   { display: "inline-block", padding: "13px 28px", background: "transparent", color: TEXT, textDecoration: "none", borderRadius: 8, fontWeight: 600, fontSize: "1rem", textAlign: "center", border: `1px solid ${BORDER}` },
+};
+
+function Logo() {
+  return (
+    <div style={{ width: "100%", maxWidth: 680, display: "flex", justifyContent: "center", marginBottom: 8 }}>
+      <svg width="140" height="32" viewBox="0 0 140 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <text x="0" y="24" fontFamily="'Plus Jakarta Sans', system-ui, sans-serif" fontSize="22" fontWeight="800" fill="#F6F1EB">rosably</text>
+      </svg>
+    </div>
+  );
+}
+
+function renderSnapshot(text) {
+  if (!text) return null;
+  return text.split('\n').map((line, i) => {
+    if (!line.trim()) return <div key={i} style={{ height: 10 }} />;
+    const bold = line.replace(/\*\*(.*?)\*\*/g, (_, m) => `<strong>${m}</strong>`);
+    if (line.startsWith('- ')) {
+      return <div key={i} style={{ display: "flex", gap: 10, margin: "4px 0" }}>
+        <span style={{ color: ACCENT, flexShrink: 0, marginTop: 2 }}>▸</span>
+        <span style={{ fontSize: "0.97rem", lineHeight: 1.65, color: TEXT }} dangerouslySetInnerHTML={{ __html: bold.slice(2) }} />
+      </div>;
+    }
+    if (line.startsWith('**') && line.endsWith('**')) {
+      return <p key={i} style={{ fontWeight: 700, fontSize: "1.05rem", color: TEXT, margin: "18px 0 6px" }}>{line.replace(/\*\*/g, '')}</p>;
+    }
+    return <p key={i} style={{ fontSize: "0.97rem", lineHeight: 1.65, color: TEXT, margin: "4px 0" }} dangerouslySetInnerHTML={{ __html: bold }} />;
+  });
+}
+
+function App() {
+  const [state, setState] = React.useState("loading"); // loading | results | error
+  const [data, setData] = React.useState(null);
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("token");
+    if (!token) { setState("error"); return; }
+    fetch(`/wp-json/rosably/v1/snapshot-result?token=${encodeURIComponent(token)}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d && d.success && d.snapshot) { setData(d); setState("results"); }
+        else setState("error");
+      })
+      .catch(() => setState("error"));
+  }, []);
+
+  if (state === "loading") {
+    return (
+      <div style={styles.shell}>
+        <Logo />
+        <div style={{ ...styles.card, textAlign: "center", padding: "56px 28px" }}>
+          <div style={{ width: 44, height: 44, border: `3px solid ${BORDER}`, borderTopColor: ACCENT, borderRadius: "50%", margin: "0 auto 22px", animation: "rosably-spin 0.9s linear infinite" }} />
+          <p style={{ fontSize: "1.05rem", color: TEXT }}>Loading your snapshot…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (state === "error") {
+    return (
+      <div style={styles.shell}>
+        <Logo />
+        <div style={styles.card}>
+          <h2 style={{ fontSize: "1.2rem", fontWeight: 700, color: TEXT, marginBottom: 12 }}>Snapshot not found</h2>
+          <p style={{ fontSize: "0.95rem", color: MUTED, lineHeight: 1.65, marginBottom: 24 }}>
+            This link may have expired or be invalid. Email <a href="mailto:brian@rosably.com" style={{ color: ACCENT }}>brian@rosably.com</a> and we'll resend it.
+          </p>
+          <a href="https://rosably.com/contact/" style={styles.ghost}>Get in touch →</a>
+        </div>
+      </div>
+    );
+  }
+
+  const date = new Date(data.created_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  return (
+    <div style={styles.shell}>
+      <Logo />
+      <div style={styles.card}>
+        <h1 style={{ ...styles.h1, color: ACCENT }}>Your AI Snapshot — {data.org}</h1>
+        <p style={{ fontSize: "0.9rem", color: MUTED, margin: "6px 0 18px" }}>{data.org_type} · Generated {date}</p>
+        <hr style={{ border: "none", borderTop: `2px solid ${ACCENT}`, margin: "0 0 22px" }} />
+
+        <div>{renderSnapshot(data.snapshot)}</div>
+
+        <hr style={{ border: "none", borderTop: `1px solid ${BORDER}`, margin: "26px 0" }} />
+
+        <h3 style={{ fontSize: "1.15rem", fontWeight: 700, color: TEXT, margin: "0 0 8px" }}>Ready to go deeper?</h3>
+        <p style={{ fontSize: "0.95rem", color: MUTED, lineHeight: 1.65, margin: "0 0 22px" }}>
+          Your AI Opportunity Review includes a full assessment, detailed findings report, and a prioritized roadmap — built specifically for {data.org}.
+        </p>
+
+        <div className="rosably-cta-row">
+          <a href="https://rosably.com/wp-json/rosably/v1/buy/stack-audit" style={styles.primary}>Get your AI Opportunity Review — $750</a>
+          <a href="https://rosably.com/contact/" style={styles.ghost}>Book a free discovery call first</a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>

@@ -49,6 +49,21 @@ add_action( 'rest_api_init', function() {
         'permission_callback' => '__return_true',
     ] );
 
+    // Called after the snapshot is displayed; persists the snapshot text and
+    // sends the prospect confirmation email with a durable results URL.
+    register_rest_route( 'rosably/v1', '/save-snapshot', [
+        'methods'             => 'POST',
+        'callback'            => 'rosably_handle_save_snapshot',
+        'permission_callback' => '__return_true',
+    ] );
+
+    // Returns a saved snapshot by token for the results viewer page.
+    register_rest_route( 'rosably/v1', '/snapshot-result', [
+        'methods'             => 'GET',
+        'callback'            => 'rosably_handle_snapshot_result',
+        'permission_callback' => '__return_true',
+    ] );
+
     register_rest_route( 'rosably/v1', '/create-checkout', [
         'methods'             => 'POST',
         'callback'            => 'rosably_handle_create_checkout',
@@ -88,7 +103,7 @@ function rosably_persist_lead( $name, $email, $org, $type, $stage, array $pain, 
             'apikey'        => $key,
             'Authorization' => 'Bearer ' . $key,
             'Content-Type'  => 'application/json',
-            'Prefer'        => 'return=minimal',
+            'Prefer'        => 'return=representation',
         ],
         'body' => wp_json_encode( [
             'name'           => $name,
@@ -114,7 +129,13 @@ function rosably_persist_lead( $name, $email, $org, $type, $stage, array $pain, 
         return false;
     }
 
-    return true;
+    $rows = json_decode( wp_remote_retrieve_body( $response ), true );
+    if ( ! is_array( $rows ) || empty( $rows[0]['id'] ) ) {
+        error_log( 'rosably persist_lead: unexpected response shape' );
+        return false;
+    }
+
+    return [ 'id' => $rows[0]['id'], 'token' => $rows[0]['token'] ?? null ];
 }
 
 function rosably_handle_assessment_submission( WP_REST_Request $request ) {
@@ -135,9 +156,10 @@ function rosably_handle_assessment_submission( WP_REST_Request $request ) {
     }
 
     // Persist to Supabase before email — a filtered/lost email no longer loses the lead.
-    $persisted = rosably_persist_lead( $name, $email, $org, $type, $stage, $pain, $blocker, $vision );
-    if ( ! $persisted ) {
-        // Non-fatal: emails are the backup. Log already written inside persist_lead.
+    // Returns ['id' => uuid, 'token' => uuid] on success, false on failure.
+    $lead = rosably_persist_lead( $name, $email, $org, $type, $stage, $pain, $blocker, $vision );
+    if ( ! $lead ) {
+        // Non-fatal: Brian alert email still goes out. Log already written inside persist_lead.
         // Return 207 so the React app can surface a non-blocking warning.
         $lead_warning = true;
     }
@@ -157,9 +179,90 @@ function rosably_handle_assessment_submission( WP_REST_Request $request ) {
         . "90-day success: {$vision}\n"
     );
 
-    // Prospect confirmation (HTML, no attachment).
-    $name_esc = esc_html( $name );
-    $prospect_body = <<<HTML
+    // Prospect confirmation email moves to /save-snapshot, sent once the snapshot
+    // text exists and we have a durable results URL to include.
+
+    // The on-screen snapshot is the deliverable; never block results on a mail hiccup.
+    // If Supabase persistence failed, return 207 so the client can surface a soft warning.
+    $status = ( $lead_warning ?? false ) ? 207 : 200;
+    return new WP_REST_Response( [
+        'success'   => true,
+        'persisted' => ! ( $lead_warning ?? false ),
+        'lead_id'   => $lead['id']    ?? null,
+        'token'     => $lead['token'] ?? null,
+    ], $status );
+}
+
+/* -------------------------------------------------------------------------
+ * 1b) Save snapshot + send prospect confirmation email
+ * ---------------------------------------------------------------------- */
+
+/**
+ * POST /save-snapshot
+ * Called by the React app after the snapshot is displayed.
+ * Persists the snapshot text, fetches the durable results URL, and sends the
+ * prospect confirmation email (which was moved out of /submit-assessment so
+ * the email can include a link back to the results).
+ */
+function rosably_handle_save_snapshot( WP_REST_Request $request ) {
+    $lead_id  = sanitize_text_field( $request->get_param( 'lead_id' ) );
+    $snapshot = sanitize_textarea_field( $request->get_param( 'snapshot' ) );
+    $email    = sanitize_email( $request->get_param( 'email' ) );
+    $name     = sanitize_text_field( $request->get_param( 'name' ) );
+    $org      = sanitize_text_field( $request->get_param( 'org' ) );
+
+    if ( ! $snapshot ) {
+        return new WP_REST_Response( [ 'success' => false, 'message' => 'Snapshot text required.' ], 400 );
+    }
+
+    $supa_url = rosably_secret( 'ROSABLY_SUPABASE_URL' ) ?: (string) getenv( 'ROSABLY_SUPABASE_URL' );
+    $supa_key = rosably_secret( 'ROSABLY_SUPABASE_SERVICE_KEY' ) ?: (string) getenv( 'ROSABLY_SUPABASE_SERVICE_KEY' );
+
+    $token       = null;
+    $results_url = null;
+
+    if ( $supa_url && $supa_key && $lead_id ) {
+        $endpoint = rtrim( $supa_url, '/' ) . '/rest/v1/assessment_leads?id=eq.' . rawurlencode( $lead_id );
+        $response = wp_remote_request( $endpoint, [
+            'method'  => 'PATCH',
+            'timeout' => 10,
+            'headers' => [
+                'apikey'        => $supa_key,
+                'Authorization' => 'Bearer ' . $supa_key,
+                'Content-Type'  => 'application/json',
+                'Prefer'        => 'return=representation',
+            ],
+            'body' => wp_json_encode( [ 'snapshot' => $snapshot ] ),
+        ] );
+
+        if ( ! is_wp_error( $response ) ) {
+            $rows = json_decode( wp_remote_retrieve_body( $response ), true );
+            if ( is_array( $rows ) && ! empty( $rows[0]['token'] ) ) {
+                $token       = $rows[0]['token'];
+                $results_url = 'https://rosably.com/wp-content/uploads/snapshot.html?token=' . $token;
+            }
+        }
+    }
+
+    // Send prospect confirmation email with the results URL (if we have one).
+    if ( $email && is_email( $email ) ) {
+        $name_esc = esc_html( $name ?: 'there' );
+        $org_esc  = esc_html( $org );
+
+        if ( $results_url ) {
+            $results_url_esc = esc_url( $results_url );
+            $link_block = <<<HTML
+        <tr>
+          <td style="padding:8px 0 24px 0;">
+            <a href="{$results_url_esc}" style="display:inline-block;padding:14px 28px;background:#1A1A1A;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:16px;border:1px solid #3D3D3F;">View your AI snapshot →</a>
+          </td>
+        </tr>
+HTML;
+        } else {
+            $link_block = '';
+        }
+
+        $prospect_body = <<<HTML
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"></head>
@@ -171,10 +274,11 @@ function rosably_handle_assessment_submission( WP_REST_Request $request ) {
         <tr>
           <td style="padding-bottom:24px;">
             <p style="margin:0 0 16px 0;">Hi {$name_esc},</p>
-            <p style="margin:0 0 16px 0;">Thanks for taking the AI quiz. Your personalized AI snapshot was generated and is waiting for you on screen &#8212; head back to the tab where you took the quiz to read it.</p>
+            <p style="margin:0 0 16px 0;">Your personalized AI snapshot for {$org_esc} is ready. You can come back to it anytime using the link below.</p>
             <p style="margin:0;">If you&#8217;re ready to go deeper, the full AI Opportunity Review gives you a complete assessment, a detailed findings report, and a prioritized roadmap built specifically for your organization.</p>
           </td>
         </tr>
+        {$link_block}
         <tr>
           <td style="padding:8px 0 32px 0;">
             <a href="https://rosably.com/services/" style="display:inline-block;padding:14px 28px;background:#C05621;color:#ffffff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:16px;">Get your full AI Opportunity Review &#8212; \$750</a>
@@ -193,21 +297,74 @@ function rosably_handle_assessment_submission( WP_REST_Request $request ) {
 </html>
 HTML;
 
-    wp_mail(
-        $email,
-        "Your AI snapshot is ready — here's what we found",
-        $prospect_body,
-        [
-            'Content-Type: text/html; charset=UTF-8',
-            'From: Rosably <brian@rosably.com>',
-            'Reply-To: brian@rosably.com',
-        ]
-    );
+        wp_mail(
+            $email,
+            'Your AI snapshot is ready — here\'s what we found',
+            $prospect_body,
+            [
+                'Content-Type: text/html; charset=UTF-8',
+                'From: Rosably <brian@rosably.com>',
+                'Reply-To: brian@rosably.com',
+            ]
+        );
+    }
 
-    // The on-screen snapshot is the deliverable; never block results on a mail hiccup.
-    // If Supabase persistence failed, return 207 so the client can surface a soft warning.
-    $status = ( $lead_warning ?? false ) ? 207 : 200;
-    return new WP_REST_Response( [ 'success' => true, 'persisted' => ! ( $lead_warning ?? false ) ], $status );
+    return new WP_REST_Response( [
+        'success'     => true,
+        'token'       => $token,
+        'results_url' => $results_url,
+    ], 200 );
+}
+
+/**
+ * GET /snapshot-result?token=<uuid>
+ * Returns the saved snapshot for the results viewer page.
+ * The token is a UUID (122-bit entropy) — effectively unguessable.
+ */
+function rosably_handle_snapshot_result( WP_REST_Request $request ) {
+    $token = sanitize_text_field( $request->get_param( 'token' ) );
+
+    if ( ! $token ) {
+        return new WP_REST_Response( [ 'success' => false, 'message' => 'Token required.' ], 400 );
+    }
+
+    $supa_url = rosably_secret( 'ROSABLY_SUPABASE_URL' ) ?: (string) getenv( 'ROSABLY_SUPABASE_URL' );
+    $supa_key = rosably_secret( 'ROSABLY_SUPABASE_SERVICE_KEY' ) ?: (string) getenv( 'ROSABLY_SUPABASE_SERVICE_KEY' );
+
+    if ( ! $supa_url || ! $supa_key ) {
+        return new WP_REST_Response( [ 'success' => false, 'message' => 'Service unavailable.' ], 500 );
+    }
+
+    $endpoint = rtrim( $supa_url, '/' ) . '/rest/v1/assessment_leads'
+        . '?token=eq.' . rawurlencode( $token )
+        . '&select=name,org,org_type,snapshot,created_at'
+        . '&limit=1';
+
+    $response = wp_remote_get( $endpoint, [
+        'timeout' => 10,
+        'headers' => [
+            'apikey'        => $supa_key,
+            'Authorization' => 'Bearer ' . $supa_key,
+        ],
+    ] );
+
+    if ( is_wp_error( $response ) ) {
+        return new WP_REST_Response( [ 'success' => false, 'message' => 'Could not load snapshot.' ], 502 );
+    }
+
+    $rows = json_decode( wp_remote_retrieve_body( $response ), true );
+    if ( ! is_array( $rows ) || empty( $rows[0]['snapshot'] ) ) {
+        return new WP_REST_Response( [ 'success' => false, 'message' => 'Snapshot not found.' ], 404 );
+    }
+
+    return new WP_REST_Response( [
+        'success'    => true,
+        'name'       => $rows[0]['name'],
+        'org'        => $rows[0]['org'],
+        'org_type'   => $rows[0]['org_type'],
+        'snapshot'   => $rows[0]['snapshot'],
+        'created_at' => $rows[0]['created_at'],
+    ], 200 );
 }
 
 /* -------------------------------------------------------------------------
