@@ -7,6 +7,14 @@
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js" integrity="sha384-ezQ6HS3FLspd9te19o2McUV6FAK091+GG7KO54f/R8DKgCDi7fULhapNrd5LY+vG" crossorigin="anonymous"></script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=GT-NFXRRBPZ"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'GT-NFXRRBPZ');
+function ga(name, params) { if (typeof gtag !== 'undefined') gtag('event', name, params || {}); }
+</script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #1A1A1A; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #F6F1EB; }
@@ -210,6 +218,8 @@ function App() {
 
   const q = QUESTIONS[qi];
 
+  React.useEffect(() => { ga('quiz_start'); }, []);
+
   const isAnswered = () => {
     const v = answers[q.key];
     if (q.type === "multi") return v.length > 0;
@@ -227,8 +237,9 @@ function App() {
 
   const goNext = () => {
     if (!isAnswered()) return;
+    ga('quiz_next', { step: qi + 1, question: q.key });
     if (qi < QUESTIONS.length - 1) setQi(qi + 1);
-    else setView("gate");
+    else { ga('quiz_gate'); setView("gate"); }
   };
   const goBack = () => { if (qi > 0) setQi(qi - 1); };
 
@@ -240,6 +251,7 @@ function App() {
     }
     if (!emailValid(email.trim())) { setGateErr("Please enter a valid work email."); return; }
     setGateErr("");
+    ga('generate_snapshot', { org_type: answers.q1 });
     setView("loading");
   };
 
@@ -270,7 +282,7 @@ function App() {
       .then(r => r.json())
       .then(d => {
         if (cancelled) return;
-        if (d && d.snapshot) { setSnapshot(d.snapshot); setView("results"); }
+        if (d && d.snapshot) { setSnapshot(d.snapshot); setView("results"); ga('snapshot_generated'); }
         else setView("error");
       })
       .catch(() => { if (!cancelled) setView("error"); });
@@ -283,6 +295,7 @@ function App() {
   React.useEffect(() => {
     if (view !== "results" || !snapshot || !leadId || !saveToken || snapshotSaved.current) return;
     snapshotSaved.current = true;
+    ga('snapshot_saved', { lead_id: leadId });
     fetch("/wp-json/rosably/v1/save-snapshot", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -297,6 +310,7 @@ function App() {
   }, [view, snapshot, leadId, saveToken]);
 
   const buyNow = async () => {
+    ga('checkout_click', { org_type: answers.q1 });
     setCheckoutBusy(true); setCheckoutErr("");
     try {
       const r = await fetch("/wp-json/rosably/v1/create-checkout", {

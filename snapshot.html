@@ -7,6 +7,14 @@
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js" integrity="sha384-ezQ6HS3FLspd9te19o2McUV6FAK091+GG7KO54f/R8DKgCDi7fULhapNrd5LY+vG" crossorigin="anonymous"></script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=GT-NFXRRBPZ"></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'GT-NFXRRBPZ');
+function ga(name, params) { if (typeof gtag !== 'undefined') gtag('event', name, params || {}); }
+</script>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #1A1A1A; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #F6F1EB; }
@@ -88,7 +96,7 @@ function App() {
     fetch(`/wp-json/rosably/v1/snapshot-result?token=${encodeURIComponent(token)}`)
       .then(r => r.json())
       .then(d => {
-        if (d && d.success && d.snapshot) { setData(d); setState("results"); }
+        if (d && d.success && d.snapshot) { setData(d); setState("results"); ga('snapshot_view', { org_type: d.org_type }); }
         else setState("error");
       })
       .catch(() => setState("error"));
