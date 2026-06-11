@@ -73,6 +73,12 @@ add_action( 'rest_api_init', function() {
     // Direct-link buy path for the /services/ page CTAs. GET so a plain <a href>
     // works; creates a fresh Checkout Session per click (sessions expire) and
     // 302-redirects to it. Email is collected on the Stripe Checkout page itself.
+    register_rest_route( 'rosably/v1', '/buy/ai-opportunity-review', [
+        'methods'             => 'GET',
+        'callback'            => 'rosably_handle_buy_stack_audit',
+        'permission_callback' => '__return_true',
+    ] );
+    // Legacy route — redirect to canonical name.
     register_rest_route( 'rosably/v1', '/buy/stack-audit', [
         'methods'             => 'GET',
         'callback'            => 'rosably_handle_buy_stack_audit',
@@ -518,7 +524,7 @@ function rosably_create_checkout_session( $email = '', $org = '', $source = 'qui
             [ 'price' => 'price_1TYriNLcDxAuVnkzQXYuA2Il', 'quantity' => 1 ],
         ],
         'mode'        => 'payment',
-        'success_url' => 'https://rosably.com/stack-audit-confirmed/',
+        'success_url' => 'https://rosably.com/review-confirmed/',
         'cancel_url'  => 'https://rosably.com/services/',
         'metadata'    => $metadata,
     ];
