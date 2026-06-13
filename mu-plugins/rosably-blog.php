@@ -88,8 +88,8 @@ function rosably_render_blog() {
                 'categories'=> $cat_arr,
             ];
         }
+        wp_reset_postdata();
     }
-    wp_reset_postdata();
 
     $json = wp_json_encode( $posts, JSON_HEX_TAG | JSON_HEX_AMP );
     ob_start();
