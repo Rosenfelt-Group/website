@@ -2,3 +2,4 @@
 *.log
 # Secrets placed directly into the WP volume via docker cp — never committed
 mu-plugins/rosably-secrets.php
+.superpowers/
