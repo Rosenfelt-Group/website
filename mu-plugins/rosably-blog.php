@@ -67,7 +67,10 @@ function rosably_render_blog() {
             $cats    = get_the_category( $id );
             $cat_arr = [];
             foreach ( $cats as $cat ) {
-                $cat_arr[] = [ 'name' => $cat->name, 'slug' => $cat->slug ];
+                $cat_arr[] = [
+                    'name' => html_entity_decode( $cat->name, ENT_QUOTES | ENT_HTML5, 'UTF-8' ),
+                    'slug' => $cat->slug,
+                ];
             }
 
             $raw_excerpt = get_the_excerpt();
@@ -81,8 +84,8 @@ function rosably_render_blog() {
 
             $posts[] = [
                 'id'        => $id,
-                'title'     => get_the_title(),
-                'excerpt'   => $raw_excerpt,
+                'title'     => html_entity_decode( get_the_title(), ENT_QUOTES | ENT_HTML5, 'UTF-8' ),
+                'excerpt'   => html_entity_decode( $raw_excerpt, ENT_QUOTES | ENT_HTML5, 'UTF-8' ),
                 'permalink' => get_permalink(),
                 'date'      => get_the_date( 'M j, Y' ),
                 'categories'=> $cat_arr,
