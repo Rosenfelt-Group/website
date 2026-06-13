@@ -96,6 +96,99 @@ function rosably_render_blog() {
       <div id="rsb-filter-bar"></div>
       <div id="rsb-card-grid"></div>
     </div>
+    <script>
+    (function() {
+      var dataEl = document.getElementById('rsb-posts-data');
+      if (!dataEl) return;
+      var posts = JSON.parse(dataEl.textContent);
+      var activeSlug = 'all';
+
+      // Derive unique categories that have >=1 post
+      var catMap = {};
+      posts.forEach(function(p) {
+        p.categories.forEach(function(c) {
+          catMap[c.slug] = c.name;
+        });
+      });
+
+      function renderPills() {
+        var bar = document.getElementById('rsb-filter-bar');
+        if (!bar) return;
+        bar.innerHTML = '';
+
+        var allBtn = document.createElement('button');
+        allBtn.className = 'rsb-pill' + (activeSlug === 'all' ? ' rsb-active' : '');
+        allBtn.textContent = 'All';
+        allBtn.setAttribute('data-slug', 'all');
+        allBtn.onclick = function() { setFilter('all'); };
+        bar.appendChild(allBtn);
+
+        Object.keys(catMap).forEach(function(slug) {
+          var btn = document.createElement('button');
+          btn.className = 'rsb-pill' + (activeSlug === slug ? ' rsb-active' : '');
+          btn.textContent = catMap[slug];
+          btn.setAttribute('data-slug', slug);
+          btn.onclick = function() { setFilter(slug); };
+          bar.appendChild(btn);
+        });
+      }
+
+      function renderCards() {
+        var grid = document.getElementById('rsb-card-grid');
+        if (!grid) return;
+        grid.innerHTML = '';
+
+        var filtered = activeSlug === 'all'
+          ? posts
+          : posts.filter(function(p) {
+              return p.categories.some(function(c) { return c.slug === activeSlug; });
+            });
+
+        if (!filtered.length) {
+          var empty = document.createElement('div');
+          empty.className = 'rsb-empty';
+          empty.textContent = 'Nothing here yet — check back soon.';
+          grid.appendChild(empty);
+          return;
+        }
+
+        filtered.forEach(function(p) {
+          var firstCat = p.categories.length ? p.categories[0].name : '';
+          var a = document.createElement('a');
+          a.className = 'rsb-card';
+          a.href = p.permalink;
+          a.innerHTML =
+            '<div class="rsb-card-cat">' + escHtml(firstCat) + '</div>' +
+            '<div class="rsb-card-bar"></div>' +
+            '<div class="rsb-card-title">' + escHtml(p.title) + '</div>' +
+            '<div class="rsb-card-exc">'  + escHtml(p.excerpt) + '</div>' +
+            '<div class="rsb-card-date">' + escHtml(p.date)    + '</div>';
+          grid.appendChild(a);
+        });
+      }
+
+      function setFilter(slug) {
+        activeSlug = slug;
+        renderPills();
+        renderCards();
+      }
+
+      function escHtml(str) {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      }
+
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() { renderPills(); renderCards(); });
+      } else {
+        renderPills();
+        renderCards();
+      }
+    })();
+    </script>
     <?php
     return ob_get_clean();
 }
