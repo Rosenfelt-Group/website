@@ -81,6 +81,27 @@
   .rsb-eb .signoff b { color: var(--accent); font-weight: 700; }
   .rsb-eb .signoff a { color: #C9C3B8; text-decoration: none; }
 
+  /* Get-the-PDF lead gate */
+  .rsb-eb .getpdf { scroll-margin-top: 80px; margin-top: 44px; background: #fff; border: 1px solid var(--border);
+    border-radius: 16px; padding: 34px 34px 30px; }
+  .rsb-eb .getpdf .gp-tag { font-size: 11px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+  .rsb-eb .getpdf h3 { margin: 0 0 8px; font-size: 24px; }
+  .rsb-eb .getpdf p { font-size: 16px; color: #555; margin: 0 0 18px; }
+  .rsb-eb .getpdf form { margin: 0; }
+  .rsb-eb .gp-row { display: flex; gap: 12px; }
+  .rsb-eb .getpdf input { width: 100%; padding: 13px 14px; border: 1px solid #D8D3CA; border-radius: 8px;
+    font-size: 15px; font-family: inherit; margin-bottom: 12px; background: #FBFAF7; color: #1a1a1a; }
+  .rsb-eb .getpdf input:focus { outline: none; border-color: var(--accent); }
+  .rsb-eb .gp-submit { display: inline-block; padding: 14px 28px; background: var(--accent); color: #fff; border: none;
+    border-radius: 8px; font-weight: 700; font-size: 16px; font-family: inherit; cursor: pointer; transition: background .15s; }
+  .rsb-eb .gp-submit:hover { background: #A8481B; }
+  .rsb-eb .gp-submit:disabled { opacity: .7; cursor: default; }
+  .rsb-eb .gp-note { font-size: 12.5px; color: #9a958c; margin: 12px 0 0; }
+  .rsb-eb .gp-msg { font-size: 14px; margin: 12px 0 0; min-height: 1px; }
+  .rsb-eb .gp-msg.ok { color: #2e7d32; }
+  .rsb-eb .gp-msg.err { color: #c0392b; }
+  @media (max-width: 760px) { .rsb-eb .gp-row { flex-direction: column; gap: 0; } }
+
   @media (max-width: 760px) {
     .rsb-eb .hero { padding: 60px 22px 64px; }
     .rsb-eb .hero h1 { font-size: 38px; }
@@ -100,7 +121,7 @@
       <h1>Beyond the Chatbot</h1>
       <div class="sub">Building AI that learns your business — and keeps it</div>
       <div class="meta">A 12-minute read</div>
-      <div><a class="dl" href="/wp-content/uploads/beyond-the-chatbot.pdf" download>↓&nbsp; Download the PDF</a></div>
+      <div><a class="dl" href="#get-pdf">↓&nbsp; Get the free PDF</a></div>
     </div>
   </header>
 
@@ -226,13 +247,68 @@
     <p><strong>Build memory, not just storage.</strong> An AI that genuinely accumulates context — that remembers the right thing at the right time and gets sharper with use — is a fundamentally different kind of tool than the forgetful chatbots most people have tried. It's the difference between something you operate and something that works <em>with</em> you.</p>
     <p>This is what we mean when we say we build AI that's actually ready to run a business: not the flashiest demo, but the system that's still standing — and still getting better — six months in.</p>
 
+    <section class="getpdf" id="get-pdf">
+      <div class="gp-tag">Free PDF</div>
+      <h3>Prefer to read it later? Get the PDF.</h3>
+      <p>Pop in your details and we'll email you the PDF — and start your download right now.</p>
+      <form id="rsb-ebook-form" novalidate>
+        <div class="gp-row">
+          <input type="text" name="name" placeholder="Your name" autocomplete="name" required>
+          <input type="email" name="email" placeholder="Work email" autocomplete="email" required>
+        </div>
+        <input type="text" name="company" placeholder="Company (optional)" autocomplete="organization">
+        <button type="submit" class="gp-submit">Email me the PDF →</button>
+        <p class="gp-note">No spam — your copy of the eBook and the occasional useful thing. Unsubscribe anytime.</p>
+        <p class="gp-msg" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+    <script>
+    (function () {
+      var f = document.getElementById('rsb-ebook-form');
+      if (!f) return;
+      var msg = f.querySelector('.gp-msg');
+      var btn = f.querySelector('.gp-submit');
+      f.addEventListener('submit', function (e) {
+        e.preventDefault();
+        var name = f.elements['name'].value.trim();
+        var email = f.elements['email'].value.trim();
+        var company = f.elements['company'].value.trim();
+        if (!name || !email) { msg.textContent = 'Please enter your name and email.'; msg.className = 'gp-msg err'; return; }
+        var old = btn.textContent;
+        btn.disabled = true; btn.textContent = 'Sending…'; msg.textContent = ''; msg.className = 'gp-msg';
+        fetch('/wp-json/rosably/v1/ebook-lead', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: name, email: email, company: company })
+        })
+        .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+        .then(function (res) {
+          if (res.ok && res.d && res.d.success) {
+            msg.textContent = 'Thanks! Your download is starting — we’ve also emailed you the link.';
+            msg.className = 'gp-msg ok';
+            btn.textContent = 'Sent ✓';
+            if (res.d.pdf_url) { window.location.href = res.d.pdf_url; }
+          } else {
+            msg.textContent = (res.d && res.d.message) || 'Something went wrong — please email brian@rosably.com.';
+            msg.className = 'gp-msg err';
+            btn.disabled = false; btn.textContent = old;
+          }
+        })
+        .catch(function () {
+          msg.textContent = 'Something went wrong — please email brian@rosably.com.';
+          msg.className = 'gp-msg err';
+          btn.disabled = false; btn.textContent = old;
+        });
+      });
+    })();
+    </script>
+
     <div class="cta">
       <h3>Let's talk</h3>
       <p>If you've been underwhelmed by AI that forgets, or you're wondering what it would take to build something that genuinely works for <em>your</em> business — the way these assistants work for ours — we'd like to hear about it.</p>
       <p><strong style="color:#fff">Book a free discovery call.</strong> We'll talk through what you're trying to accomplish, where AI can actually help (and where it can't), and what it would take to build something you can rely on. No pitch deck, no obligation.</p>
       <div class="cta-actions">
         <a class="cta-btn" href="https://rosably.com/contact/">Book a free discovery call →</a>
-        <a class="cta-pdf" href="/wp-content/uploads/beyond-the-chatbot.pdf" download>↓ Download PDF</a>
         <a class="cta-email" href="mailto:brian@rosably.com">or email <b>brian@rosably.com</b></a>
       </div>
       <div class="signoff"><b>Rosably</b> — AI systems built to remember, built to last. · <a href="https://rosably.com">rosably.com</a></div>

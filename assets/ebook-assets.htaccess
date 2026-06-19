@@ -1,0 +1,10 @@
+# The eBook PDF is a gated lead magnet. Block direct HTTP access — it is served
+# only through /wp-json/rosably/v1/ebook-download after the lead form is submitted.
+# PHP (readfile) still reads it from disk; this only blocks direct web requests.
+<IfModule mod_authz_core.c>
+  Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+  Order allow,deny
+  Deny from all
+</IfModule>
