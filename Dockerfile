@@ -10,3 +10,8 @@ RUN a2enmod expires
 COPY apache/rosably-cache.conf /etc/apache2/conf-enabled/rosably-cache.conf
 
 COPY mu-plugins/ /usr/src/wordpress/wp-content/mu-plugins/
+
+# Downloadable eBook PDF, served at /wp-content/uploads/beyond-the-chatbot.pdf.
+# Baked into the image for the fresh-volume case; also docker-cp'd into the live
+# volume on deploy (the entrypoint never re-copies an existing volume).
+COPY assets/beyond-the-chatbot.pdf /usr/src/wordpress/wp-content/uploads/beyond-the-chatbot.pdf
