@@ -1,0 +1,219 @@
+{
+  "version": "v1",
+  "title": "Discovery questionnaire",
+  "estimated_minutes": 15,
+  "project_types": {
+    "content_social": "Content & social media",
+    "operations": "Operations & internal workflow",
+    "fundraising": "Fundraising, donors & CRM",
+    "data_reporting": "Data, reporting & impact tracking",
+    "other": "Something else"
+  },
+  "sections": [
+    {
+      "id": "project",
+      "title": "Your project",
+      "intro": "Here's what you shared about the project. Correct anything that's out of date — no need to repeat what's already here.",
+      "fields": [
+        { "id": "project_confirm", "type": "single", "label": "Is the description above still accurate?", "required": true,
+          "options": ["Yes, it's accurate", "Mostly — a few things have changed", "It's changed quite a bit"] },
+        { "id": "project_changes", "type": "textarea", "label": "What has changed, or what would you add?",
+          "showIf": { "field": "project_confirm", "in": ["Mostly — a few things have changed", "It's changed quite a bit"] } },
+        { "id": "why_now", "type": "textarea", "label": "Why is this a priority right now?", "help": "A deadline, a staff change, a grant, burnout — whatever is driving it.", "required": true }
+      ]
+    },
+    {
+      "id": "people",
+      "title": "Your team",
+      "intro": "Who's involved, and how much time this takes today.",
+      "fields": [
+        { "id": "respondent_name", "type": "text", "label": "Your name", "required": true, "prefill": "contact_name" },
+        { "id": "respondent_role", "type": "text", "label": "Your role", "required": true },
+        { "id": "respondent_email", "type": "email", "label": "Best email for follow-up", "required": true, "prefill": "contact_email" },
+        { "id": "team_size", "type": "single", "label": "How many paid staff does the organization have?", "required": true,
+          "options": ["None — all volunteer", "1–2", "3–5", "6–15", "16+"] },
+        { "id": "volunteers", "type": "single", "label": "How many active volunteers help regularly?",
+          "options": ["None", "1–5", "6–20", "20+"] },
+        { "id": "roles_involved", "type": "tool_rows", "label": "Who is involved in this work today?",
+          "help": "One row per person or role. Rough hours are fine.",
+          "columns": [
+            { "id": "role", "label": "Person or role", "placeholder": "e.g. Program assistant" },
+            { "id": "does", "label": "What they do", "placeholder": "e.g. Picks posts, schedules them" },
+            { "id": "hours", "label": "Hours / week", "placeholder": "e.g. 6" }
+          ],
+          "min_rows": 1 },
+        { "id": "decision_maker", "type": "text", "label": "Who makes the final call on changes to tools or process?", "required": true },
+        { "id": "ongoing_owner", "type": "text", "label": "After the project ends, who would own and maintain the new setup?",
+          "help": "This matters more than anything else for whether a new system sticks.", "required": true }
+      ]
+    },
+    {
+      "id": "tools",
+      "title": "Tools you use today",
+      "intro": "Check everything you use, even lightly. Then tell us a bit more about the few that matter most for this project.",
+      "fields": [
+        { "id": "tools_workspace", "type": "multi", "label": "Email, documents and file storage", "other": true,
+          "options": ["Google Workspace (Gmail, Drive, Docs)", "Microsoft 365 (Outlook, OneDrive, SharePoint)", "Dropbox", "Box", "Personal email accounts"] },
+        { "id": "tools_comms", "type": "multi", "label": "Team communication", "other": true,
+          "options": ["Slack", "Microsoft Teams", "Email threads", "Text / WhatsApp", "Google Chat"] },
+        { "id": "tools_pm", "type": "multi", "label": "Tasks, projects and calendars", "other": true,
+          "options": ["Asana", "Trello", "Monday.com", "ClickUp", "Notion", "Airtable", "Google Sheets / Excel", "Shared Google or Outlook calendar", "Nothing formal"] },
+        { "id": "tools_crm", "type": "multi", "label": "Donor, member or contact management", "other": true,
+          "options": ["Salesforce (Nonprofit Cloud / NPSP)", "Bloomerang", "DonorPerfect", "Little Green Light", "Neon CRM", "Givebutter", "Mailchimp audience", "Spreadsheets", "None"] },
+        { "id": "tools_marketing", "type": "multi", "label": "Design, social media and email marketing", "other": true,
+          "options": ["Canva", "Meta Business Suite", "Buffer", "Hootsuite", "Later", "Sprout Social", "Mailchimp", "Constant Contact", "Riverside", "CapCut", "Adobe Express"] },
+        { "id": "tools_web", "type": "single", "label": "Website platform",
+          "options": ["WordPress", "Squarespace", "Wix", "Webflow", "Other", "Not sure"] },
+        { "id": "tools_automation", "type": "multi", "label": "Automation tools", "other": true,
+          "options": ["Zapier", "Make", "n8n", "Power Automate", "IFTTT", "Built-in automations inside our tools", "None yet"] },
+        { "id": "key_tools", "type": "tool_rows", "label": "The 3–5 tools that matter most for this project",
+          "help": "Plan level matters — free and paid versions can do very different things.",
+          "columns": [
+            { "id": "tool", "label": "Tool", "placeholder": "e.g. Canva" },
+            { "id": "plan", "label": "Plan", "type": "select", "options": ["Free", "Paid", "Nonprofit / donated", "Not sure"] },
+            { "id": "admin", "label": "Who manages it", "placeholder": "e.g. ED" },
+            { "id": "access", "label": "Could you give us access?", "type": "select", "options": ["Yes", "Maybe", "No"] }
+          ],
+          "min_rows": 1 },
+        { "id": "nonprofit_programs", "type": "multi", "label": "Which nonprofit technology programs are you enrolled in?",
+          "help": "These can unlock free or heavily discounted licenses.",
+          "options": ["Google for Nonprofits", "Microsoft for Nonprofits", "Canva for Nonprofits", "Salesforce Power of Us", "TechSoup", "Slack for Nonprofits", "None", "Not sure"] },
+        { "id": "tool_budget", "type": "single", "label": "What could you spend on software each month if it clearly saved staff time?", "required": true,
+          "options": ["$0 — free tools only", "Under $50", "$50–$200", "Over $200", "Not sure / would need board approval"] }
+      ]
+    },
+    {
+      "id": "ai",
+      "title": "AI today",
+      "intro": "No wrong answers — plenty of teams are just getting started.",
+      "fields": [
+        { "id": "ai_tools", "type": "multi", "label": "Which AI tools does anyone on your team use?", "other": true, "required": true,
+          "options": ["ChatGPT (free)", "ChatGPT (paid)", "Claude", "Google Gemini", "Microsoft Copilot", "Canva AI features", "Grammarly", "Otter / meeting note-takers", "None"] },
+        { "id": "ai_uses", "type": "multi", "label": "What do you use AI for?", "other": true,
+          "showIf": { "field": "ai_tools", "notIn": ["None"] },
+          "options": ["Drafting posts or emails", "Planning content or campaigns", "Brainstorming", "Summarizing documents or meetings", "Grant writing", "Images or graphics", "Data or spreadsheets"] },
+        { "id": "ai_how_often", "type": "single", "label": "How often is AI part of the work?",
+          "showIf": { "field": "ai_tools", "notIn": ["None"] },
+          "options": ["Rarely — a few experiments", "Weekly, by one or two people", "Daily, by one or two people", "Most of the team, most days"] },
+        { "id": "ai_worked", "type": "textarea", "label": "What has AI actually helped with — and where has it disappointed you?",
+          "showIf": { "field": "ai_tools", "notIn": ["None"] } },
+        { "id": "ai_policy", "type": "single", "label": "Do you have guidance on how staff can use AI?",
+          "options": ["No guidance", "Informal — we've talked about it", "Written policy", "Not sure"] },
+        { "id": "ai_concerns", "type": "multi", "label": "What concerns you about using more AI?", "other": true,
+          "options": ["Privacy of the people we serve", "Accuracy / mistakes", "Sounding generic or off-brand", "Cost", "Staff comfort or skills", "How donors or partners would see it", "No major concerns"] }
+      ]
+    },
+    {
+      "id": "history",
+      "title": "What you've tried",
+      "intro": "This helps us avoid suggesting things you've already ruled out.",
+      "fields": [
+        { "id": "tried_before", "type": "textarea", "label": "What have you already tried to fix this?", "required": true,
+          "help": "Tools, templates, automations, volunteers, consultants — anything." },
+        { "id": "what_stuck", "type": "textarea", "label": "What worked and is still in use?" },
+        { "id": "what_didnt", "type": "textarea", "label": "What didn't stick, and why?", "help": "Too complicated, too expensive, the person who set it up left…" },
+        { "id": "workarounds", "type": "textarea", "label": "Any manual workarounds or 'only one person knows how' steps?" }
+      ]
+    },
+    {
+      "id": "workflow_content",
+      "title": "Your content workflow",
+      "modules": ["content_social"],
+      "intro": "Walk us through how a post goes from idea to published.",
+      "fields": [
+        { "id": "channels", "type": "multi", "label": "Which channels do you publish to?", "required": true, "other": true,
+          "options": ["Instagram", "Facebook", "LinkedIn", "TikTok", "YouTube", "X / Twitter", "Threads", "Email newsletter", "Blog / website"] },
+        { "id": "post_volume", "type": "single", "label": "How many posts go out in a typical week (all channels)?", "required": true,
+          "options": ["0–2", "3–5", "6–10", "11–20", "20+"] },
+        { "id": "post_target", "type": "text", "label": "How many would you like to post per week?" },
+        { "id": "idea_to_post", "type": "textarea", "label": "Describe the steps from idea to published post", "required": true,
+          "placeholder": "e.g. Monday: assistant checks the calendar, asks ChatGPT for ideas, searches Drive for photos, builds in Canva, posts in Slack for approval, schedules in Meta…" },
+        { "id": "content_inputs", "type": "multi", "label": "Where do post ideas come from today?", "other": true,
+          "options": ["Organizational calendar", "Upcoming programs and events", "Partner announcements", "Awareness days / health observances", "Fundraising campaigns", "Whatever feels timely that week"] },
+        { "id": "asset_storage", "type": "textarea", "label": "Where do images, videos and templates live, and how are they organized?",
+          "help": "Folder structure, naming conventions, tags — or 'it's a mess' is a fine answer." },
+        { "id": "approvals", "type": "textarea", "label": "Who approves content, and how does approval happen?", "required": true,
+          "placeholder": "e.g. ED approves via Slack thread; sometimes takes 2–3 days" },
+        { "id": "brand_guide", "type": "single", "label": "Do you have written brand or messaging guidelines?",
+          "options": ["Yes, documented and current", "Partly — templates but no written guide", "No"] },
+        { "id": "bottlenecks", "type": "multi", "label": "Which steps take the most time or cause the most delay?", "required": true, "max": 3,
+          "help": "Pick up to 3.",
+          "options": ["Deciding what to post", "Writing captions", "Finding existing assets", "Creating new graphics or video", "Getting approvals", "Scheduling across channels", "Tracking what's ready vs. in progress", "Reporting on results"] },
+        { "id": "metrics", "type": "multi", "label": "What do you measure today?", "other": true,
+          "options": ["Followers", "Engagement / likes / comments", "Website clicks", "Event signups or donations from social", "Nothing consistently"] }
+      ]
+    },
+    {
+      "id": "workflow_fundraising",
+      "title": "Your fundraising and donor workflow",
+      "modules": ["fundraising"],
+      "intro": "How donor information and outreach work today.",
+      "fields": [
+        { "id": "donor_count", "type": "single", "label": "Roughly how many active donors or members?", "required": true,
+          "options": ["Under 100", "100–500", "500–2,000", "2,000+"] },
+        { "id": "gift_channels", "type": "multi", "label": "How do gifts come in?", "other": true,
+          "options": ["Online form", "Checks", "Events", "Peer-to-peer", "Grants", "Recurring / monthly"] },
+        { "id": "donor_process", "type": "textarea", "label": "Describe what happens from a gift arriving to the thank-you going out", "required": true },
+        { "id": "data_quality", "type": "single", "label": "How much do you trust your donor data?",
+          "options": ["Clean and current", "Mostly fine", "Duplicates and gaps", "We don't really have one list"] },
+        { "id": "fundraising_bottlenecks", "type": "multi", "label": "Where does the most time go?", "required": true, "max": 3, "other": true,
+          "options": ["Data entry", "Thank-you letters and receipts", "Segmenting lists", "Grant research and writing", "Reporting to the board", "Event logistics"] }
+      ]
+    },
+    {
+      "id": "workflow_data",
+      "title": "Your data and reporting",
+      "modules": ["data_reporting"],
+      "intro": "What you track, and how reports get made.",
+      "fields": [
+        { "id": "data_tracked", "type": "textarea", "label": "What do you track about programs and the people you serve?", "required": true },
+        { "id": "data_where", "type": "textarea", "label": "Where does that data live today?", "required": true },
+        { "id": "reports_needed", "type": "multi", "label": "Which reports do you produce?", "other": true,
+          "options": ["Board updates", "Grant reports", "Annual report", "Program dashboards", "Funder impact metrics"] },
+        { "id": "report_effort", "type": "textarea", "label": "How long does a typical report take, and what's the slowest part?", "required": true }
+      ]
+    },
+    {
+      "id": "workflow_general",
+      "title": "The process you want to improve",
+      "modules": ["operations", "other"],
+      "intro": "Walk us through the process as it actually happens today.",
+      "fields": [
+        { "id": "process_steps", "type": "textarea", "label": "Describe the steps, start to finish", "required": true,
+          "placeholder": "Who does what, in which tool, and what triggers the next step" },
+        { "id": "process_frequency", "type": "single", "label": "How often does this happen?", "required": true,
+          "options": ["Daily", "A few times a week", "Weekly", "Monthly", "Seasonally / for events"] },
+        { "id": "process_volume", "type": "text", "label": "Typical volume", "placeholder": "e.g. 40 intake forms a week" },
+        { "id": "process_breaks", "type": "textarea", "label": "Where does it break, slow down or depend on one person?", "required": true }
+      ]
+    },
+    {
+      "id": "data_sensitivity",
+      "title": "Data and constraints",
+      "intro": "So we can recommend tools that fit your obligations.",
+      "fields": [
+        { "id": "sensitive_data", "type": "single", "label": "Does this work involve personal, health or financial information about the people you serve?", "required": true,
+          "options": ["No", "Yes, but only names and contact info", "Yes, including health or other sensitive details", "Not sure"] },
+        { "id": "data_rules", "type": "multi", "label": "Are you bound by any of these?", "other": true,
+          "showIf": { "field": "sensitive_data", "notIn": ["No"] },
+          "options": ["HIPAA", "Funder data requirements", "Partner data-sharing agreements", "State privacy law", "None that we know of"] },
+        { "id": "must_keep", "type": "textarea", "label": "Any tools or habits that should NOT change?", "help": "Things staff rely on and like." },
+        { "id": "tech_comfort", "type": "scale", "label": "How comfortable is the team with learning new tools?", "required": true,
+          "min": 1, "max": 5, "minLabel": "Prefer to keep it simple", "maxLabel": "Eager to try new things" }
+      ]
+    },
+    {
+      "id": "success",
+      "title": "What success looks like",
+      "intro": "Last section.",
+      "fields": [
+        { "id": "success_90", "type": "textarea", "label": "Three months from now, what would make this project a clear success?", "required": true,
+          "placeholder": "e.g. Posts scheduled two weeks ahead, assistant spends 3 hrs/week on social instead of 10" },
+        { "id": "time_saved_goal", "type": "text", "label": "How many hours a week would you want to free up?", "placeholder": "e.g. 6–8" },
+        { "id": "links", "type": "textarea", "label": "Links worth seeing before our call (optional)",
+          "help": "Content calendar, brand guide, sample posts, social profiles. Share-able links only — no passwords." },
+        { "id": "anything_else", "type": "textarea", "label": "Anything else we should know?" }
+      ]
+    }
+  ]
+}
