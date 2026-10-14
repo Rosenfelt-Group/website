@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>Discovery — Rosably</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js" integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z" crossorigin="anonymous"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1" crossorigin="anonymous"></script>
+<style>
+  :root {
+    --accent: #C05621; --bg: #1A1A1A; --card: #2A2A2C; --border: #3D3D3F;
+    --text: #F6F1EB; --muted: #ABABAB; --danger: #F2994A;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: var(--text); line-height: 1.5; }
+  button, input, textarea, select { font-family: inherit; font-size: inherit; color: inherit; }
+  #root { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 32px 16px 80px; }
+  .shell { width: 100%; max-width: 720px; }
+  .brand { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; font-size: .85rem; color: var(--muted); }
+  .brand b { color: var(--text); font-size: 1rem; letter-spacing: .02em; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 28px 24px; }
+  @media (min-width: 600px) { .card { padding: 36px 36px; } }
+  h1 { font-size: clamp(1.5rem, 3.5vw, 2rem); line-height: 1.25; font-weight: 700; }
+  h2 { font-size: 1.35rem; font-weight: 700; line-height: 1.3; }
+  .muted { color: var(--muted); }
+  .small { font-size: .85rem; }
+  .intro { color: var(--muted); margin: 6px 0 24px; }
+  .brief { background: var(--bg); border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 10px; padding: 16px 18px; margin: 0 0 24px; white-space: pre-wrap; font-size: .93rem; color: #E8E6E0; max-height: 280px; overflow: auto; }
+  .progress { height: 4px; background: var(--border); border-radius: 4px; overflow: hidden; margin-bottom: 8px; }
+  .progress > div { height: 100%; background: var(--accent); transition: width .3s; }
+  .meta { display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); margin-bottom: 18px; }
+  .field { margin-bottom: 26px; }
+  .label { display: block; font-weight: 600; margin-bottom: 4px; }
+  .req { color: var(--accent); margin-left: 3px; }
+  .help { font-size: .85rem; color: var(--muted); margin-bottom: 10px; }
+  .err { font-size: .85rem; color: var(--danger); margin-top: 6px; }
+  input[type=text], input[type=email], textarea, select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 14px; outline: none; font-size: 16px; /* 16px stops iOS zoom */
+  }
+  textarea { min-height: 96px; resize: vertical; }
+  input:focus, textarea:focus, select:focus { border-color: var(--accent); }
+  .has-error input, .has-error textarea, .has-error .opts { border-color: var(--danger); }
+  .opt { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; cursor: pointer;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; margin-bottom: 8px;
+    font-size: .95rem; transition: background .15s, border-color .15s; }
+  .opt:hover { border-color: #5a5a5c; }
+  .opt.on { background: rgba(192,86,33,.14); border-color: var(--accent); }
+  .opt:disabled { opacity: .45; cursor: not-allowed; }
+  .dot { flex: 0 0 20px; height: 20px; border: 2px solid #555; border-radius: 50%; display: grid; place-items: center; font-size: 12px; color: #fff; }
+  .dot.sq { border-radius: 5px; }
+  .on .dot { background: var(--accent); border-color: var(--accent); }
+  .grid2 { display: grid; grid-template-columns: 1fr; gap: 0 8px; }
+  @media (min-width: 600px) { .grid2 { grid-template-columns: 1fr 1fr; } }
+  /* Short option lists render as wrapping chips to keep long sections scannable on phones. */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+  .chips .opt { width: auto; margin: 0; padding: 8px 14px; border-radius: 999px; font-size: .9rem; gap: 8px; }
+  .chips .dot { flex-basis: 16px; height: 16px; font-size: 10px; }
+  .scale { display: flex; gap: 8px; }
+  .scale button { flex: 1; padding: 12px 0; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); cursor: pointer; font-weight: 600; }
+  .scale button.on { background: var(--accent); border-color: var(--accent); }
+  .scale-labels { display: flex; justify-content: space-between; font-size: .8rem; color: var(--muted); margin-top: 6px; }
+  .row { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin-bottom: 10px; background: var(--bg); }
+  .row-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+  @media (min-width: 600px) { .row-grid.c3 { grid-template-columns: 1.1fr 1.6fr .7fr; } .row-grid.c4 { grid-template-columns: 1.2fr 1fr 1fr 1fr; } }
+  .row-grid label { font-size: .75rem; color: var(--muted); display: block; margin-bottom: 3px; }
+  .row-grid input, .row-grid select { background: var(--card); padding: 10px 12px; }
+  .row-actions { display: flex; justify-content: flex-end; margin-top: 6px; }
+  .link { background: none; border: none; color: var(--accent); cursor: pointer; font-weight: 600; padding: 4px 0; }
+  .link.muted { color: var(--muted); font-weight: 500; }
+  .nav { display: flex; gap: 12px; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 20px; border-top: 1px solid var(--border); }
+  .btn { padding: 13px 24px; border-radius: 10px; border: 1px solid var(--border); background: transparent; cursor: pointer; font-weight: 600; }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .save-state { font-size: .8rem; color: var(--muted); }
+  .center { text-align: center; }
+  .spin { width: 28px; height: 28px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 14px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .steps { list-style: none; margin: 18px 0 24px; }
+  .steps li { padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; font-size: .93rem; }
+  .steps li:last-child { border-bottom: none; }
+  .check { color: var(--accent); }
+</style>
+</head>
+<body>
+<noscript><p style="padding:40px;text-align:center">Please enable JavaScript to fill out this questionnaire.</p></noscript>
+<div id="root"></div>
+<script>
+(function () {
+  "use strict";
+  var h = React.createElement;
+  var useState = React.useState, useEffect = React.useEffect, useRef = React.useRef, useCallback = React.useCallback;
+
+  var API = "/wp-json/rosably/v1/discovery";
+  var TOKEN = new URLSearchParams(window.location.search).get("t") || "";
+  var LS_KEY = "rosably_discovery_" + TOKEN;
+  // Picking one of these clears the other choices, and vice versa.
+  var EXCLUSIVE = ["None", "None yet", "Nothing formal", "No major concerns", "None that we know of", "Not sure"];
+
+  function lsGet() { try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch (e) { return null; } }
+  function lsSet(v) { try { localStorage.setItem(LS_KEY, JSON.stringify(v)); } catch (e) {} }
+  function lsClear() { try { localStorage.removeItem(LS_KEY); } catch (e) {} }
+
+  function isEmpty(v) {
+    if (Array.isArray(v)) {
+      return v.every(function (item) {
+        if (item && typeof item === "object") return Object.keys(item).every(function (k) { return !String(item[k] || "").trim(); });
+        return !String(item || "").trim();
+      });
+    }
+    return v === null || v === undefined || String(v).trim() === "";
+  }
+
+  // Mirrors rosably_discovery_visible() in rosably-discovery.php.
+  function isVisible(field, answers) {
+    var c = field.showIf;
+    if (!c) return true;
+    var val = answers[c.field];
+    if (isEmpty(val)) return false;
+    var vals = Array.isArray(val) ? val : [val];
+    if (c["in"]) return vals.some(function (v) { return c["in"].indexOf(v) !== -1; });
+    if (c.notIn) return vals.some(function (v) { return c.notIn.indexOf(v) === -1; });
+    return true;
+  }
+
+  function missingIn(section, answers) {
+    return section.fields.filter(function (f) {
+      return f.required && isVisible(f, answers) && isEmpty(answers[f.id]);
+    }).map(function (f) { return f.id; });
+  }
+
+  function api(path, opts) {
+    return fetch(API + path, Object.assign({ headers: { "Content-Type": "application/json" } }, opts || {}))
+      .then(function (r) { return r.json().catch(function () { return {}; }).then(function (b) { b._status = r.status; return b; }); });
+  }
+
+  /* ---------- Field renderers ---------- */
+
+  // Lists of short options become chips; long sentence-style options stay as full-width rows.
+  function layoutFor(opts) {
+    if (opts.length >= 4 && opts.every(function (o) { return o.length <= 48; })) return "chips";
+    return "";
+  }
+
+  function Option(props) {
+    return h("button", { type: "button", className: "opt" + (props.on ? " on" : ""), onClick: props.onClick, disabled: props.disabled, "aria-pressed": props.on },
+      h("span", { className: "dot" + (props.square ? " sq" : "") }, props.on && props.square ? "✓" : null),
+      h("span", null, props.label));
+  }
+
+  function SingleField(p) {
+    var f = p.field, v = p.value;
+    var opts = f.options || [];
+    var wrap = layoutFor(opts);
+    return h("div", null,
+      h("div", { className: wrap, role: "radiogroup" }, opts.map(function (o) {
+        return h(Option, { key: o, label: o, on: v === o, onClick: function () { p.onChange(o); } });
+      })),
+      v === "Other" ? h("input", { type: "text", placeholder: "Please specify", value: p.answers[f.id + "__other"] || "",
+        onChange: function (e) { p.setAnswer(f.id + "__other", e.target.value); } }) : null);
+  }
+
+  function MultiField(p) {
+    var f = p.field, v = Array.isArray(p.value) ? p.value : [];
+    var opts = (f.options || []).concat(f.other ? ["Other"] : []);
+    var wrap = layoutFor(opts);
+    function toggle(o) {
+      var next;
+      if (v.indexOf(o) !== -1) next = v.filter(function (x) { return x !== o; });
+      else if (EXCLUSIVE.indexOf(o) !== -1) next = [o];
+      else next = v.filter(function (x) { return EXCLUSIVE.indexOf(x) === -1; }).concat([o]);
+      p.onChange(next);
+    }
+    var atMax = f.max && v.length >= f.max;
+    return h("div", null,
+      h("div", { className: wrap }, opts.map(function (o) {
+        var on = v.indexOf(o) !== -1;
+        return h(Option, { key: o, label: o, square: true, on: on, disabled: atMax && !on, onClick: function () { toggle(o); } });
+      })),
+      v.indexOf("Other") !== -1 ? h("input", { type: "text", placeholder: "Which others?", value: p.answers[f.id + "__other"] || "",
+        onChange: function (e) { p.setAnswer(f.id + "__other", e.target.value); } }) : null);
+  }
+
+  function ScaleField(p) {
+    var f = p.field, nums = [];
+    for (var i = f.min || 1; i <= (f.max || 5); i++) nums.push(i);
+    return h("div", null,
+      h("div", { className: "scale" }, nums.map(function (n) {
+        return h("button", { key: n, type: "button", className: p.value === n ? "on" : "", onClick: function () { p.onChange(n); } }, n);
+      })),
+      h("div", { className: "scale-labels" }, h("span", null, f.minLabel), h("span", null, f.maxLabel)));
+  }
+
+  function RowsField(p) {
+    var f = p.field;
+    var rows = Array.isArray(p.value) && p.value.length ? p.value : [{}];
+    var cols = f.columns;
+    function update(i, col, val) {
+      var next = rows.map(function (r, j) { return j === i ? Object.assign({}, r, (function () { var o = {}; o[col] = val; return o; })()) : r; });
+      p.onChange(next);
+    }
+    return h("div", null,
+      rows.map(function (r, i) {
+        return h("div", { className: "row", key: i },
+          h("div", { className: "row-grid c" + cols.length }, cols.map(function (c) {
+            var input = c.type === "select"
+              ? h("select", { value: r[c.id] || "", onChange: function (e) { update(i, c.id, e.target.value); } },
+                  [h("option", { key: "", value: "" }, "—")].concat(c.options.map(function (o) { return h("option", { key: o, value: o }, o); })))
+              : h("input", { type: "text", value: r[c.id] || "", placeholder: c.placeholder || "", onChange: function (e) { update(i, c.id, e.target.value); } });
+            return h("div", { key: c.id }, h("label", null, c.label), input);
+          })),
+          rows.length > 1 ? h("div", { className: "row-actions" },
+            h("button", { type: "button", className: "link muted small", onClick: function () { p.onChange(rows.filter(function (_, j) { return j !== i; })); } }, "Remove")) : null);
+      }),
+      rows.length < 15 ? h("button", { type: "button", className: "link", onClick: function () { p.onChange(rows.concat([{}])); } }, "+ Add another") : null);
+  }
+
+  function Field(p) {
+    var f = p.field;
+    var body;
+    var set = function (v) { p.setAnswer(f.id, v); };
+    switch (f.type) {
+      case "single":    body = h(SingleField, Object.assign({}, p, { onChange: set })); break;
+      case "multi":     body = h(MultiField, Object.assign({}, p, { onChange: set })); break;
+      case "scale":     body = h(ScaleField, Object.assign({}, p, { onChange: set })); break;
+      case "tool_rows": body = h(RowsField, Object.assign({}, p, { onChange: set })); break;
+      case "textarea":  body = h("textarea", { id: f.id, value: p.value || "", placeholder: f.placeholder || "", onChange: function (e) { set(e.target.value); } }); break;
+      default:          body = h("input", { id: f.id, type: f.type === "email" ? "email" : "text", value: p.value || "", placeholder: f.placeholder || "",
+                          autoComplete: f.type === "email" ? "email" : "off", onChange: function (e) { set(e.target.value); } });
+    }
+    return h("div", { className: "field" + (p.error ? " has-error" : ""), id: "f-" + f.id },
+      h("label", { className: "label", htmlFor: f.id }, f.label, f.required ? h("span", { className: "req", "aria-label": "required" }, "*") : null),
+      f.help ? h("div", { className: "help" }, f.help) : null,
+      body,
+      p.error ? h("div", { className: "err" }, "This one is required.") : null);
+  }
+
+  /* ---------- App ---------- */
+
+  function App() {
+    var _s = useState({ phase: "loading" }), state = _s[0], setState = _s[1];
+    var _a = useState({}), answers = _a[0], setAnswers = _a[1];
+    var _i = useState(-1), idx = _i[0], setIdx = _i[1];          // -1 = welcome screen
+    var _e = useState([]), errors = _e[0], setErrors = _e[1];
+    var _v = useState(""), saveState = _v[0], setSaveState = _v[1];
+    var _b = useState(false), busy = _b[0], setBusy = _b[1];
+    var dirty = useRef(false), timer = useRef(null), latest = useRef({ answers: {}, idx: -1 });
+
+    useEffect(function () {
+      if (!TOKEN) { setState({ phase: "error", message: "This link is missing its access code. Please use the full link from your email." }); return; }
+      api("/invite?token=" + encodeURIComponent(TOKEN)).then(function (d) {
+        if (!d.success) { setState({ phase: "error", message: d.message || "Something went wrong." }); return; }
+        if (d.status === "submitted") { setState({ phase: "done", data: d }); lsClear(); return; }
+        var saved = d.answers && Object.keys(d.answers).length ? d.answers : {};
+        var local = lsGet();
+        // Prefer a newer local copy if the last server save failed.
+        var start = local && local.answers && Object.keys(local.answers).length > Object.keys(saved).length ? local.answers : saved;
+        start = Object.assign({}, start);
+        d.questionnaire.sections.forEach(function (s) {
+          s.fields.forEach(function (f) {
+            if (f.prefill && isEmpty(start[f.id]) && d[f.prefill]) start[f.id] = d[f.prefill];
+          });
+        });
+        setAnswers(start);
+        var resumeAt = d.questionnaire.sections.findIndex(function (s) { return s.id === d.current_section; });
+        setState({ phase: "form", data: d, resumeAt: resumeAt });
+      }).catch(function () { setState({ phase: "error", message: "We couldn't load the questionnaire. Check your connection and refresh." }); });
+    }, []);
+
+    latest.current = { answers: answers, idx: idx };
+
+    var save = useCallback(function () {
+      if (!dirty.current || state.phase !== "form") return Promise.resolve();
+      dirty.current = false;
+      var sec = state.data.questionnaire.sections[latest.current.idx];
+      setSaveState("Saving…");
+      return api("/save", { method: "POST", body: JSON.stringify({ token: TOKEN, answers: latest.current.answers, current_section: sec ? sec.id : null }) })
+        .then(function (d) {
+          if (d.success) setSaveState("Saved");
+          else { dirty.current = true; setSaveState(d._status === 409 ? "Already submitted" : "Not saved — will retry"); }
+        })
+        .catch(function () { dirty.current = true; setSaveState("Offline — saved on this device"); });
+    }, [state]);
+
+    function setAnswer(id, v) {
+      setAnswers(function (prev) {
+        var next = Object.assign({}, prev); next[id] = v;
+        lsSet({ answers: next });
+        return next;
+      });
+      setErrors(function (errs) { return errs.filter(function (e) { return e !== id; }); });
+      dirty.current = true;
+      setSaveState("");
+      clearTimeout(timer.current);
+      timer.current = setTimeout(function () { save(); }, 2000);
+    }
+
+    useEffect(function () {
+      function onLeave() { if (dirty.current) save(); }
+      window.addEventListener("pagehide", onLeave);
+      return function () { window.removeEventListener("pagehide", onLeave); };
+    }, [save]);
+
+    function go(next) {
+      clearTimeout(timer.current);
+      save();
+      setIdx(next);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+
+    function next(sections) {
+      var miss = missingIn(sections[idx], answers);
+      if (miss.length) {
+        setErrors(miss);
+        var el = document.getElementById("f-" + miss[0]);
+        if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
+      setErrors([]);
+      if (idx < sections.length - 1) go(idx + 1);
+      else submit(sections);
+    }
+
+    function submit(sections) {
+      setBusy(true);
+      clearTimeout(timer.current);
+      api("/submit", { method: "POST", body: JSON.stringify({ token: TOKEN, answers: answers }) }).then(function (d) {
+        setBusy(false);
+        if (d.success) {
+          lsClear();
+          dirty.current = false;
+          // Kick off the brief; keepalive lets it finish if the tab closes.
+          try { fetch(API + "/brief", { method: "POST", keepalive: true, headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token: TOKEN }) }); } catch (e) {}
+          setState({ phase: "done", data: state.data });
+          window.scrollTo({ top: 0 });
+        } else if (d.missing) {
+          var first = sections.findIndex(function (s) { return s.fields.some(function (f) { return d.missing.indexOf(f.id) !== -1; }); });
+          setErrors(d.missing);
+          if (first !== -1) setIdx(first);
+        } else {
+          setSaveState(d.message || "Could not submit — please try again.");
+        }
+      }).catch(function () { setBusy(false); setSaveState("Could not submit — check your connection and try again."); });
+    }
+
+    var header = h("div", { className: "brand" }, h("b", null, "Rosably"), h("span", null, state.data ? state.data.org_name : ""));
+
+    if (state.phase === "loading") return h("div", { className: "shell" }, header, h("div", { className: "card center" }, h("div", { className: "spin" }), h("p", { className: "muted" }, "Loading your questionnaire…")));
+    if (state.phase === "error") return h("div", { className: "shell" }, header, h("div", { className: "card" }, h("h2", null, "We can't open this questionnaire"), h("p", { className: "intro" }, state.message), h("p", { className: "small muted" }, "Questions? Email brian@rosably.com.")));
+    if (state.phase === "done") return h("div", { className: "shell" }, header, h("div", { className: "card" },
+      h("h1", null, "Thank you — that's everything."),
+      h("p", { className: "intro", style: { marginTop: 12 } }, "Your answers are in. I'll review them before our first call so we can spend the time on " + (state.data.org_name || "your") + "'s priorities rather than background questions."),
+      h("p", { className: "muted" }, "If anything changes before then, just reply to the confirmation email."),
+      h("p", { style: { marginTop: 20 } }, "— Brian Rosenfelt, Rosably")));
+
+    var d = state.data, sections = d.questionnaire.sections;
+    var first = (d.contact_name || "").split(" ")[0];
+
+    if (idx === -1) {
+      var resuming = state.resumeAt > 0;
+      return h("div", { className: "shell" }, header, h("div", { className: "card" },
+        h("h1", null, (first ? "Hi " + first + " — " : "") + "let's get ready for our first call"),
+        h("p", { className: "intro", style: { marginTop: 12 } },
+          "This helps me understand what you have in place today — tools, people, what you've tried — so our call can focus on solutions. It takes about " + d.questionnaire.estimated_minutes + " minutes and saves as you go, so you can stop and come back with the same link."),
+        h("p", { className: "small muted", style: { marginBottom: 6 } }, "Project"),
+        h("p", { style: { fontWeight: 600, marginBottom: 20 } }, d.project_title),
+        h("ul", { className: "steps" }, sections.map(function (s, i) {
+          var done = missingIn(s, answers).length === 0 && s.fields.some(function (f) { return !isEmpty(answers[f.id]); });
+          return h("li", { key: s.id }, h("span", null, (i + 1) + ". " + s.title), done ? h("span", { className: "check" }, "✓") : null);
+        })),
+        h("div", { className: "nav", style: { borderTop: "none", paddingTop: 0 } },
+          h("span", { className: "small muted" }, "Your answers are only shared with Rosably."),
+          h("button", { className: "btn primary", onClick: function () { go(resuming ? state.resumeAt : 0); } }, resuming ? "Pick up where you left off" : "Start"))));
+    }
+
+    var s = sections[idx];
+    var pct = Math.round((idx / sections.length) * 100);
+    var isLast = idx === sections.length - 1;
+
+    return h("div", { className: "shell" }, header,
+      h("div", { className: "progress" }, h("div", { style: { width: pct + "%" } })),
+      h("div", { className: "meta" }, h("span", null, "Section " + (idx + 1) + " of " + sections.length), h("span", { className: "save-state", "aria-live": "polite" }, saveState)),
+      h("div", { className: "card" },
+        h("h2", null, s.title),
+        s.intro ? h("p", { className: "intro" }, s.intro) : null,
+        s.id === "project" && d.project_brief ? h("div", { className: "brief" }, d.project_brief) : null,
+        s.fields.filter(function (f) { return isVisible(f, answers); }).map(function (f) {
+          return h(Field, { key: f.id, field: f, value: answers[f.id], answers: answers, setAnswer: setAnswer, error: errors.indexOf(f.id) !== -1 });
+        }),
+        errors.length ? h("p", { className: "err", style: { marginBottom: 12 } }, "Please answer the highlighted questions to continue.") : null,
+        h("div", { className: "nav" },
+          h("button", { className: "btn", onClick: function () { go(idx - 1); } }, "Back"),
+          h("button", { className: "btn primary", disabled: busy, onClick: function () { next(sections); } },
+            busy ? "Submitting…" : isLast ? "Submit" : "Continue"))));
+  }
+
+  ReactDOM.createRoot(document.getElementById("root")).render(h(App));
+})();
+</script>
+</body>
+</html>
