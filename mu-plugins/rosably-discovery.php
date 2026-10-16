@@ -10,6 +10,10 @@
  *   Browser  → /wp-json/rosably/v1/discovery/{invite,save,submit,brief}
  *   This file → Supabase REST (service key, crm schema) → dashboard reads the same tables.
  *
+ * Questions come from the invite's questionnaire_snapshot, frozen by the dashboard
+ * when it sends the invite (falling back to questionnaire-<version>.json for rows
+ * without one). Draft invites aren't reachable, except read-only with &preview=1.
+ *
  * Depends on helpers in rosably-assessment.php (rosably_secret, rosably_client_ip).
  * mu-plugins load alphabetically, so rosably-assessment.php is always loaded first.
  */
@@ -136,6 +140,37 @@ function rosably_discovery_definition( $version ) {
     return is_array( $def ) ? $def : null;
 }
 
+/** The questionnaire this invite was sent with: its frozen snapshot, else the versioned file. */
+function rosably_discovery_invite_definition( array $invite ) {
+    $snap = $invite['questionnaire_snapshot'] ?? null;
+    if ( is_array( $snap ) && ! empty( $snap['sections'] ) && is_array( $snap['sections'] ) ) {
+        return $snap;
+    }
+    return rosably_discovery_definition( $invite['questionnaire_version'] ?? 'v1' );
+}
+
+const ROSABLY_DISCOVERY_PROJECT_TYPES = [
+    'content_social' => 'Content & social media',
+    'operations'     => 'Operations & internal workflow',
+    'fundraising'    => 'Fundraising, donors & CRM',
+    'data_reporting' => 'Data, reporting & impact tracking',
+    'other'          => 'Something else',
+];
+
+/** Rough minutes to complete when the definition doesn't say. Mirrors estimateMinutes() in the dashboard. */
+function rosably_discovery_minutes( array $def ) {
+    if ( ! empty( $def['estimated_minutes'] ) ) {
+        return (int) $def['estimated_minutes'];
+    }
+    $secs = 0;
+    foreach ( $def['sections'] as $s ) {
+        foreach ( $s['fields'] as $f ) {
+            $secs += in_array( $f['type'], [ 'textarea', 'tool_rows' ], true ) ? 60 : 20;
+        }
+    }
+    return max( 3, (int) round( $secs / 60 ) );
+}
+
 /** Sections that apply to this invite's project type. */
 function rosably_discovery_sections( array $def, $project_type ) {
     return array_values( array_filter( $def['sections'], function ( $s ) use ( $project_type ) {
@@ -230,6 +265,13 @@ function rosably_discovery_clean_answers( array $def, $raw ) {
                 case 'email':
                     $clean[ $id ] = sanitize_email( (string) $v );
                     break;
+                case 'yes_no':
+                    $clean[ $id ] = in_array( $v, [ 'Yes', 'No' ], true ) ? $v : '';
+                    // Follow-up text, kept only when the answer asks for it.
+                    if ( ! empty( $f['followUpOn'] ) && $clean[ $id ] === $f['followUpOn'] && isset( $raw[ $id . '__detail' ] ) ) {
+                        $clean[ $id . '__detail' ] = $text( $raw[ $id . '__detail' ] );
+                    }
+                    break;
                 default: // text, textarea, single
                     $clean[ $id ] = $text( $v );
                     if ( $f['type'] === 'single' && isset( $raw[ $id . '__other' ] ) ) {
@@ -262,7 +304,7 @@ function rosably_discovery_missing( array $def, $project_type, array $answers ) 
 /**
  * @return array|WP_REST_Response invite row (with business, contact, response) or an error response.
  */
-function rosably_discovery_load( $token ) {
+function rosably_discovery_load( $token, $allow_draft = false ) {
     $token = strtolower( trim( (string) $token ) );
     if ( ! preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $token ) ) {
         return rosably_discovery_error( 'This link is not valid.', 404 );
@@ -276,7 +318,8 @@ function rosably_discovery_load( $token ) {
         return rosably_discovery_error( 'Something went wrong. Please try again shortly.', 502 );
     }
     $invite = $res['data'][0] ?? null;
-    if ( ! $invite ) {
+    // Drafts haven't been sent: indistinguishable from a bad link, except for the dashboard's preview.
+    if ( ! $invite || ( $invite['status'] === 'draft' && ! $allow_draft ) ) {
         return rosably_discovery_error( 'This link is not valid.', 404 );
     }
     if ( $invite['status'] === 'archived' ) {
@@ -310,16 +353,18 @@ function rosably_discovery_get_invite( WP_REST_Request $request ) {
     if ( ! rosably_discovery_rate_limit( 'invite_' . rosably_client_ip(), 120 ) ) {
         return rosably_discovery_error( 'Too many requests.', 429 );
     }
-    $invite = rosably_discovery_load( $request->get_param( 'token' ) );
+    // Preview (from the dashboard): read-only, works for drafts, never marks the invite opened.
+    $preview = (string) $request->get_param( 'preview' ) === '1';
+    $invite  = rosably_discovery_load( $request->get_param( 'token' ), $preview );
     if ( $invite instanceof WP_REST_Response ) {
         return $invite;
     }
-    $def = rosably_discovery_definition( $invite['questionnaire_version'] );
+    $def = rosably_discovery_invite_definition( $invite );
     if ( ! $def ) {
         return rosably_discovery_error( 'Questionnaire unavailable.', 500 );
     }
 
-    if ( $invite['status'] === 'sent' ) {
+    if ( $invite['status'] === 'sent' && ! $preview ) {
         rosably_crm( 'PATCH', 'discovery_invites', [ 'id' => 'eq.' . $invite['id'] ], [
             'status'    => 'opened',
             'opened_at' => gmdate( 'c' ),
@@ -337,11 +382,14 @@ function rosably_discovery_get_invite( WP_REST_Request $request ) {
         'project_type'  => $invite['project_type'],
         'status'        => $invite['status'],
         'submitted_at'  => $invite['submitted_at'],
-        'answers'       => (object) ( $invite['response']['answers'] ?? [] ),
-        'current_section' => $invite['response']['current_section'] ?? null,
+        'preview'       => $preview,
+        // A preview shows the questions, not the respondent's saved answers.
+        'answers'       => (object) ( $preview ? [] : ( $invite['response']['answers'] ?? [] ) ),
+        'current_section' => $preview ? null : ( $invite['response']['current_section'] ?? null ),
         'questionnaire' => [
             'version'           => $def['version'],
-            'estimated_minutes' => $def['estimated_minutes'],
+            'estimated_minutes' => rosably_discovery_minutes( $def ),
+            'intro'             => isset( $def['intro'] ) ? (string) $def['intro'] : null,
             'sections'          => rosably_discovery_sections( $def, $invite['project_type'] ),
         ],
     ], 200 );
@@ -390,7 +438,7 @@ function rosably_discovery_save( WP_REST_Request $request ) {
         return rosably_discovery_error( 'This questionnaire has already been submitted.', 409 );
     }
 
-    $def     = rosably_discovery_definition( $invite['questionnaire_version'] );
+    $def     = rosably_discovery_invite_definition( $invite );
     $answers = rosably_discovery_clean_answers( $def, $body['answers'] ?? [] );
     $res     = rosably_discovery_persist( $invite, $def, $answers, $body['current_section'] ?? null );
     if ( ! $res['ok'] ) {
@@ -423,7 +471,7 @@ function rosably_discovery_submit( WP_REST_Request $request ) {
         return new WP_REST_Response( [ 'success' => true, 'already_submitted' => true ], 200 );
     }
 
-    $def     = rosably_discovery_definition( $invite['questionnaire_version'] );
+    $def     = rosably_discovery_invite_definition( $invite );
     $answers = rosably_discovery_clean_answers( $def, $body['answers'] ?? [] );
     $missing = rosably_discovery_missing( $def, $invite['project_type'], $answers );
     if ( $missing ) {
@@ -540,7 +588,9 @@ function rosably_discovery_generate_brief( WP_REST_Request $request ) {
     @set_time_limit( 240 );
 
     $key = rosably_secret( 'ROSABLY_ANTHROPIC_API_KEY' );
-    $def = $invite['response']['schema_snapshot'] ?? rosably_discovery_definition( $invite['questionnaire_version'] );
+    $def = ! empty( $invite['questionnaire_snapshot']['sections'] )
+        ? $invite['questionnaire_snapshot']
+        : ( $invite['response']['schema_snapshot'] ?? rosably_discovery_definition( $invite['questionnaire_version'] ) );
     $fail = function ( $msg ) use ( $brief ) {
         rosably_crm( 'PATCH', 'discovery_briefs', [ 'id' => 'eq.' . $brief['id'] ], [
             'status'       => 'failed',
@@ -623,6 +673,9 @@ function rosably_discovery_transcript( array $def, $project_type, array $answers
             if ( ! empty( $answers[ $f['id'] . '__other' ] ) ) {
                 $val .= ' — Other: ' . $answers[ $f['id'] . '__other' ];
             }
+            if ( ! empty( $answers[ $f['id'] . '__detail' ] ) ) {
+                $val .= ' — ' . ( $f['followUpLabel'] ?? 'Details' ) . ' ' . $answers[ $f['id'] . '__detail' ];
+            }
             $lines[] = '- ' . $f['label'] . ': ' . $val;
         }
     }
@@ -632,7 +685,7 @@ function rosably_discovery_transcript( array $def, $project_type, array $answers
 function rosably_discovery_brief_prompt( array $invite, array $def ) {
     $answers = $invite['response']['answers'] ?? [];
     $org     = $invite['business']['name'] ?? 'the organization';
-    $types   = $def['project_types'] ?? [];
+    $types   = ( $def['project_types'] ?? [] ) + ROSABLY_DISCOVERY_PROJECT_TYPES;
     $ptype   = $types[ $invite['project_type'] ] ?? $invite['project_type'];
     $eng     = $invite['engagement_type'] === 'pro_bono'
         ? 'This is a volunteer, pro bono engagement of about 3 months with specific deliverables. Recommend only what a small team can maintain on its own afterwards, favoring tools they already pay for or can get free through nonprofit programs.'
