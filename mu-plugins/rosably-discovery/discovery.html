@@ -85,6 +85,11 @@
   .steps li { padding: 8px 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; font-size: .93rem; }
   .steps li:last-child { border-bottom: none; }
   .check { color: var(--accent); }
+  .preview-banner { background: rgba(192,86,33,.14); border: 1px solid var(--accent); border-radius: 10px; padding: 10px 14px; margin-bottom: 16px; font-size: .85rem; }
+  .yesno { display: flex; gap: 8px; }
+  .yesno .opt { flex: 1; justify-content: center; margin-bottom: 0; }
+  .followup { margin-top: 12px; }
+  .followup label { display: block; font-size: .9rem; margin-bottom: 6px; }
 </style>
 </head>
 <body>
@@ -97,14 +102,18 @@
   var useState = React.useState, useEffect = React.useEffect, useRef = React.useRef, useCallback = React.useCallback;
 
   var API = "/wp-json/rosably/v1/discovery";
-  var TOKEN = new URLSearchParams(window.location.search).get("t") || "";
+  var PARAMS = new URLSearchParams(window.location.search);
+  var TOKEN = PARAMS.get("t") || "";
+  // Dashboard preview: read-only, nothing is saved (server also refuses saves for drafts).
+  var PREVIEW = PARAMS.get("preview") === "1";
   var LS_KEY = "rosably_discovery_" + TOKEN;
+  var DEFAULT_INTRO = "This helps me understand what you have in place today — tools, people, what you've tried — so our call can focus on solutions.";
   // Picking one of these clears the other choices, and vice versa.
   var EXCLUSIVE = ["None", "None yet", "Nothing formal", "No major concerns", "None that we know of", "Not sure"];
 
-  function lsGet() { try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch (e) { return null; } }
-  function lsSet(v) { try { localStorage.setItem(LS_KEY, JSON.stringify(v)); } catch (e) {} }
-  function lsClear() { try { localStorage.removeItem(LS_KEY); } catch (e) {} }
+  function lsGet() { if (PREVIEW) return null; try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch (e) { return null; } }
+  function lsSet(v) { if (PREVIEW) return; try { localStorage.setItem(LS_KEY, JSON.stringify(v)); } catch (e) {} }
+  function lsClear() { if (PREVIEW) return; try { localStorage.removeItem(LS_KEY); } catch (e) {} }
 
   function isEmpty(v) {
     if (Array.isArray(v)) {
@@ -186,6 +195,19 @@
         onChange: function (e) { p.setAnswer(f.id + "__other", e.target.value); } }) : null);
   }
 
+  // Yes / No, with an optional follow-up text box stored as <id>__detail.
+  function YesNoField(p) {
+    var f = p.field, v = p.value;
+    return h("div", null,
+      h("div", { className: "yesno", role: "radiogroup" }, ["Yes", "No"].map(function (o) {
+        return h(Option, { key: o, label: o, on: v === o, onClick: function () { p.onChange(o); } });
+      })),
+      f.followUpOn && v === f.followUpOn ? h("div", { className: "followup" },
+        h("label", { htmlFor: f.id + "__detail" }, f.followUpLabel || "Tell us more"),
+        h("textarea", { id: f.id + "__detail", value: p.answers[f.id + "__detail"] || "",
+          onChange: function (e) { p.setAnswer(f.id + "__detail", e.target.value); } })) : null);
+  }
+
   function ScaleField(p) {
     var f = p.field, nums = [];
     for (var i = f.min || 1; i <= (f.max || 5); i++) nums.push(i);
@@ -228,6 +250,7 @@
       case "single":    body = h(SingleField, Object.assign({}, p, { onChange: set })); break;
       case "multi":     body = h(MultiField, Object.assign({}, p, { onChange: set })); break;
       case "scale":     body = h(ScaleField, Object.assign({}, p, { onChange: set })); break;
+      case "yes_no":    body = h(YesNoField, Object.assign({}, p, { onChange: set })); break;
       case "tool_rows": body = h(RowsField, Object.assign({}, p, { onChange: set })); break;
       case "textarea":  body = h("textarea", { id: f.id, value: p.value || "", placeholder: f.placeholder || "", onChange: function (e) { set(e.target.value); } }); break;
       default:          body = h("input", { id: f.id, type: f.type === "email" ? "email" : "text", value: p.value || "", placeholder: f.placeholder || "",
@@ -253,9 +276,9 @@
 
     useEffect(function () {
       if (!TOKEN) { setState({ phase: "error", message: "This link is missing its access code. Please use the full link from your email." }); return; }
-      api("/invite?token=" + encodeURIComponent(TOKEN)).then(function (d) {
+      api("/invite?token=" + encodeURIComponent(TOKEN) + (PREVIEW ? "&preview=1" : "")).then(function (d) {
         if (!d.success) { setState({ phase: "error", message: d.message || "Something went wrong." }); return; }
-        if (d.status === "submitted") { setState({ phase: "done", data: d }); lsClear(); return; }
+        if (d.status === "submitted" && !PREVIEW) { setState({ phase: "done", data: d }); lsClear(); return; }
         var saved = d.answers && Object.keys(d.answers).length ? d.answers : {};
         var local = lsGet();
         // Prefer a newer local copy if the last server save failed.
@@ -275,7 +298,7 @@
     latest.current = { answers: answers, idx: idx };
 
     var save = useCallback(function () {
-      if (!dirty.current || state.phase !== "form") return Promise.resolve();
+      if (PREVIEW || !dirty.current || state.phase !== "form") return Promise.resolve();
       dirty.current = false;
       var sec = state.data.questionnaire.sections[latest.current.idx];
       setSaveState("Saving…");
@@ -294,6 +317,7 @@
         return next;
       });
       setErrors(function (errs) { return errs.filter(function (e) { return e !== id; }); });
+      if (PREVIEW) return;
       dirty.current = true;
       setSaveState("");
       clearTimeout(timer.current);
@@ -314,7 +338,7 @@
     }
 
     function next(sections) {
-      var miss = missingIn(sections[idx], answers);
+      var miss = PREVIEW ? [] : missingIn(sections[idx], answers);
       if (miss.length) {
         setErrors(miss);
         var el = document.getElementById("f-" + miss[0]);
@@ -323,6 +347,7 @@
       }
       setErrors([]);
       if (idx < sections.length - 1) go(idx + 1);
+      else if (PREVIEW) setSaveState("Preview — submitting is turned off.");
       else submit(sections);
     }
 
@@ -348,7 +373,9 @@
       }).catch(function () { setBusy(false); setSaveState("Could not submit — check your connection and try again."); });
     }
 
-    var header = h("div", { className: "brand" }, h("b", null, "Rosably"), h("span", null, state.data ? state.data.org_name : ""));
+    var header = h("div", null,
+      PREVIEW ? h("div", { className: "preview-banner" }, h("b", null, "Preview"), " — this is what the organization will see. Nothing you enter here is saved.") : null,
+      h("div", { className: "brand" }, h("b", null, "Rosably"), h("span", null, state.data ? state.data.org_name : "")));
 
     if (state.phase === "loading") return h("div", { className: "shell" }, header, h("div", { className: "card center" }, h("div", { className: "spin" }), h("p", { className: "muted" }, "Loading your questionnaire…")));
     if (state.phase === "error") return h("div", { className: "shell" }, header, h("div", { className: "card" }, h("h2", null, "We can't open this questionnaire"), h("p", { className: "intro" }, state.message), h("p", { className: "small muted" }, "Questions? Email brian@rosably.com.")));
@@ -365,8 +392,10 @@
       var resuming = state.resumeAt > 0;
       return h("div", { className: "shell" }, header, h("div", { className: "card" },
         h("h1", null, (first ? "Hi " + first + " — " : "") + "let's get ready for our first call"),
-        h("p", { className: "intro", style: { marginTop: 12 } },
-          "This helps me understand what you have in place today — tools, people, what you've tried — so our call can focus on solutions. It takes about " + d.questionnaire.estimated_minutes + " minutes and saves as you go, so you can stop and come back with the same link."),
+        h("p", { className: "intro", style: { marginTop: 12, whiteSpace: "pre-wrap" } },
+          d.questionnaire.intro
+            ? d.questionnaire.intro
+            : DEFAULT_INTRO + " It takes about " + d.questionnaire.estimated_minutes + " minutes and saves as you go, so you can stop and come back with the same link."),
         h("p", { className: "small muted", style: { marginBottom: 6 } }, "Project"),
         h("p", { style: { fontWeight: 600, marginBottom: 20 } }, d.project_title),
         h("ul", { className: "steps" }, sections.map(function (s, i) {
@@ -388,7 +417,8 @@
       h("div", { className: "card" },
         h("h2", null, s.title),
         s.intro ? h("p", { className: "intro" }, s.intro) : null,
-        s.id === "project" && d.project_brief ? h("div", { className: "brief" }, d.project_brief) : null,
+        d.project_brief && (s.id === "project" || (idx === 0 && !sections.some(function (x) { return x.id === "project"; })))
+          ? h("div", { className: "brief" }, d.project_brief) : null,
         s.fields.filter(function (f) { return isVisible(f, answers); }).map(function (f) {
           return h(Field, { key: f.id, field: f, value: answers[f.id], answers: answers, setAnswer: setAnswer, error: errors.indexOf(f.id) !== -1 });
         }),
@@ -396,7 +426,7 @@
         h("div", { className: "nav" },
           h("button", { className: "btn", onClick: function () { go(idx - 1); } }, "Back"),
           h("button", { className: "btn primary", disabled: busy, onClick: function () { next(sections); } },
-            busy ? "Submitting…" : isLast ? "Submit" : "Continue"))));
+            busy ? "Submitting…" : isLast ? (PREVIEW ? "Submit (off in preview)" : "Submit") : "Continue"))));
   }
 
   ReactDOM.createRoot(document.getElementById("root")).render(h(App));
